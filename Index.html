@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frogfriends</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap');
+        
+        :root {
+            --bg-top: #a7f3d0;
+            --bg-bottom: #4fac82;
+            --accent: #fde047;
+            --celestial-top: #1e293b;
+            --celestial-bottom: #0f172a;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #4fac82; 
+            font-family: 'Gaegu', cursive;
+            user-select: none;
+            touch-action: none;
+            color: white;
+        }
+
+        #pond-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, var(--bg-top) 0%, var(--bg-bottom) 100%);
+            overflow: hidden;
+            transition: background 3s ease-in-out;
+        }
+
+        /* Spirit Realm Background Overrides */
+        body.zen-active #pond-container {
+            background: linear-gradient(to bottom, var(--celestial-top) 0%, var(--celestial-bottom) 100%) !important;
+        }
+
+        /* --- Layers --- */
+        #fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+        #fish-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+        #spirit-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+        
+        .rain-drop {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.4);
+            width: 1px;
+            height: 20px;
+            pointer-events: none;
+            animation: rain-fall 0.8s linear infinite;
+        }
+        @keyframes rain-fall { to { transform: translateY(100vh); } }
+
+        .snow-flake {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: snow-fall 3s linear infinite;
+        }
+        @keyframes snow-fall { to { transform: translateY(100vh) rotate(360deg); } }
+
+        .lightning-flash {
+            position: absolute;
+            inset: 0;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .flash-active { animation: lightning-anim 0.2s ease-out; }
+        @keyframes lightning-anim { 0% { opacity: 0; } 50% { opacity: 0.8; } 100% { opacity: 0; } }
+
+        /* UI Styling */
+        .ui-root { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
+        .ui-root > * { pointer-events: auto; }
+        .ui-element { transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1), transform 1.5s; }
+        
+        /* Hide EVERYTHING in Zen Mode */
+        .zen-active .ui-element { 
+            opacity: 0 !important; 
+            pointer-events: none !important; 
+            transform: scale(0.9) translateY(20px); 
+        }
+
+        .ui-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(16px);
+            border-radius: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 20px;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 15px 45px rgba(0,0,0,0.15);
+        }
+
+        .pill-btn {
+            background: #76d4a5;
+            border-radius: 20px;
+            padding: 8px;
+            color: white;
+            font-weight: bold;
+            border: none;
+            box-shadow: 0 4px 0px #459470;
+            transition: all 0.1s;
+            width: 115px;
+            min-height: 75px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            text-align: center;
+            line-height: 1.1;
+        }
+        .pill-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0px #459470; }
+        .pill-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 0px 0px #459470; }
+        .pill-btn:disabled { opacity: 0.4; filter: grayscale(1); }
+
+        /* Lily Pads */
+        .lily-pad {
+            width: 120px;
+            height: 100px;
+            background: #62b88e; 
+            border-radius: 45% 55% 50% 50% / 50% 50% 55% 45%;
+            box-shadow: inset 0 -5px 15px rgba(0,0,0,0.15), 0 12px 24px rgba(0,0,0,0.1);
+            cursor: pointer;
+            animation: bobbing 5s ease-in-out infinite;
+            position: absolute;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 2px;
+            padding: 10px;
+            z-index: 20;
+            transition: all 0.3s;
+        }
+        .lily-pad.selectable {
+            outline: 4px dashed #fde047;
+            outline-offset: 8px;
+            transform: scale(1.1);
+            z-index: 50;
+        }
+        @keyframes bobbing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* Frogs */
+        .frog-sprite {
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.2));
+            transition: transform 0.2s;
+        }
+        .frog-sprite:hover { transform: scale(1.2); }
+        .wild-frog { animation: hop-wild 2s ease-in-out infinite; }
+        @keyframes hop-wild { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-5px); } }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #4fac82;
+            border: 4px solid #fde047;
+            border-radius: 30px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: #fde047;
+            text-shadow: 0 4px 0 #4d7c0f;
+            animation: float-up 1.2s ease-out forwards;
+            z-index: 200;
+        }
+        @keyframes float-up { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-120px); } }
+
+        #frogs-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .frog-list-item {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .placing-overlay {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 15px 30px;
+            border-radius: 20px;
+            z-index: 3000;
+            pointer-events: none;
+            display: none;
+            border: 2px solid #fde047;
+            text-align: center;
+        }
+
+        #zen-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 100px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s;
+            z-index: 500;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="pond-container" ondblclick="handleGlobalDoubleClick()">
+    <div id="fx-layer"></div>
+    <div id="fish-layer"></div>
+    <div id="spirit-layer"></div>
+    <div id="lightning-layer" class="lightning-flash"></div>
+
+    <div id="game-center" class="absolute inset-0">
+        <div id="main-cluster" class="relative w-full h-full">
+            <div class="lily-pad" id="pad-0" onclick="handlePadInteraction(0, event)" style="left: calc(50% - 60px); top: calc(50% - 50px);"></div>
+        </div>
+    </div>
+
+    <div id="placing-ui" class="placing-overlay">
+        <div class="text-xl font-bold text-yellow-300">PLACEMENT MODE</div>
+        <div id="placing-msg" class="text-sm opacity-80">Click a lily pad to place your frog</div>
+        <button onclick="cancelPlacement()" class="mt-2 text-xs bg-red-500 px-3 py-1 rounded-full pointer-events-auto">Cancel</button>
+    </div>
+
+    <div id="zen-toast">Double tap to return</div>
+
+    <div id="ui-wrapper">
+        <div class="ui-root">
+            <div class="absolute top-10 left-10 ui-element">
+                <div class="flex items-baseline gap-3">
+                    <span class="text-7xl font-bold drop-shadow-lg" id="score">0</span>
+                    <span class="text-2xl text-yellow-300 font-bold" id="multiplier">x1.0</span>
+                </div>
+                <div class="text-xl opacity-80 uppercase tracking-widest flex items-center gap-2">
+                    <span id="evo-name">Morning Marsh</span>
+                    <span id="weather-icon">☀️</span>
+                </div>
+            </div>
+
+            <div class="absolute top-10 right-10 flex flex-col items-end ui-element">
+                <div class="text-[10px] font-bold opacity-70 mb-1 tracking-widest uppercase">Pond Soul</div>
+                <div class="w-64 h-3 bg-black/30 rounded-full overflow-hidden border border-white/20">
+                    <div id="evo-bar" class="h-full bg-gradient-to-r from-yellow-200 to-yellow-500 transition-all duration-700" style="width: 0%"></div>
+                </div>
+                <div class="text-xs mt-1 font-bold" id="evo-goal">Goal: 100</div>
+            </div>
+
+            <div class="absolute top-40 right-10 ui-element">
+                <button onclick="toggleZen(true)" class="group bg-white/10 hover:bg-white/20 px-8 py-4 rounded-full border border-white/30 text-lg backdrop-blur-xl transition-all flex items-center gap-3">
+                    <span class="text-2xl animate-pulse">✨</span>
+                    Enter Spirit Realm
+                </button>
+            </div>
+
+            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 ui-element">
+                <div class="ui-panel">
+                    <button id="btn-add-pad" class="pill-btn" onclick="buyPad()">
+                        <span>New Pad</span>
+                        <span class="text-xs mt-1" id="cost-pad">150</span>
+                    </button>
+                    <button id="btn-friend" class="pill-btn" onclick="openFrogMenu()">
+                        <span>Frog Menu</span>
+                        <span class="text-xs mt-1" id="frog-count">Owned: 0</span>
+                    </button>
+                    <button id="btn-click" class="pill-btn" onclick="buyClick()">
+                        <span>Zen Focus</span>
+                        <span class="text-xs mt-1" id="cost-click">250</span>
+                    </button>
+                    <button id="btn-totem" class="pill-btn" onclick="buyTotem()">
+                        <span>Ancient Totem</span>
+                        <span class="text-xs mt-1" id="cost-totem">5,000</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="catch-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div id="catch-display" class="mb-6"></div>
+        <h2 class="text-3xl font-bold mb-2" id="catch-name">New Friend!</h2>
+        <p class="text-yellow-200 mb-4" id="catch-stats"></p>
+        <div class="mb-6">
+            <label class="block text-xs uppercase opacity-70 mb-1">Name your frog</label>
+            <input type="text" id="frog-name-input" class="w-full bg-black/30 border border-white/20 rounded-xl p-3 text-center text-xl outline-none" placeholder="Enter name...">
+        </div>
+        <button onclick="confirmCatch()" class="w-full bg-yellow-400 text-green-900 font-bold py-4 rounded-xl text-xl hover:bg-yellow-300 transition-colors">WELCOME HOME</button>
+    </div>
+</div>
+
+<div id="frog-menu-modal" class="modal-overlay">
+    <div class="modal-content !max-w-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold">Your Pond Friends</h2>
+            <button onclick="closeFrogMenu()" class="text-4xl opacity-50 hover:opacity-100">&times;</button>
+        </div>
+        <div id="frogs-list" class="grid grid-cols-1 gap-3 pr-2"></div>
+    </div>
+</div>
+
+<script>
+    const MAX_FROGS_PER_PAD = 4;
+    const FROG_TYPES = Array.from({ length: 150 }, (_, i) => {
+        const weathers = ['idle', 'rain', 'snow', 'lightning'];
+        const baseColors = ['#86efac', '#f87171', '#60a5fa', '#fbbf24', '#c084fc', '#f472b6', '#ffffff', '#4ade80'];
+        return {
+            id: i,
+            species: `Species #${i + 1}`,
+            color: baseColors[i % baseColors.length],
+            bonusWeather: weathers[i % weathers.length],
+            bonusMult: 1.1 + (i * 0.05),
+            pattern: i % 3 === 0 ? 'dots' : i % 3 === 1 ? 'stripes' : 'none'
+        };
+    });
+
+    const evos = ["Morning Marsh", "Sun-Dappled Reeds", "Hidden Lotus Valley", "Mist-Covered Grotto", "Twilight Sanctuary", "Celestial Waters"];
+    
+    let state = {
+        ribbits: 0,
+        totalInEvo: 0,
+        evolution: 0,
+        pads: 1,
+        clickLv: 1,
+        totems: 0,
+        mult: 1.0,
+        zenMult: 1.0,
+        evoGoal: 100,
+        zenMode: false,
+        weather: 'idle',
+        myFrogs: [], 
+        currentCatch: null,
+        placingFrogId: null
+    };
+
+    function gainRibbits(amt) {
+        state.ribbits += amt;
+        state.totalInEvo += amt;
+        if (state.totalInEvo >= state.evoGoal) evolve();
+        updateUI();
+    }
+
+    function evolve() {
+        state.evolution++;
+        state.totalInEvo = 0;
+        state.evoGoal = Math.floor(state.evoGoal * 2.8);
+        state.mult += 0.5 + (state.evolution * 0.2);
+        
+        const colors = [
+            ['#a7f3d0', '#4fac82'], ['#fde68a', '#d97706'], ['#fbcfe8', '#db2777'], 
+            ['#ddd6fe', '#7c3aed'], ['#bae6fd', '#0284c7'], ['#1e293b', '#0f172a']
+        ];
+        const pair = colors[Math.min(state.evolution, colors.length-1)];
+        document.getElementById('pond-container').style.setProperty('--bg-top', pair[0]);
+        document.getElementById('pond-container').style.setProperty('--bg-bottom', pair[1]);
+        randomizeWeather();
+    }
+
+    function updateUI() {
+        const frogBonusMult = state.myFrogs.reduce((acc, f) => {
+            const type = FROG_TYPES[f.typeId];
+            const active = (type.bonusWeather === state.weather || type.bonusWeather === 'idle') && f.padIndex !== -1;
+            return acc + (active ? type.bonusMult - 1 : 0);
+        }, 1);
+
+        const totalMult = state.mult * state.zenMult * frogBonusMult;
+        document.getElementById('score').innerText = Math.floor(state.ribbits).toLocaleString();
+        document.getElementById('multiplier').innerText = `x${totalMult.toFixed(1)}`;
+        document.getElementById('evo-name').innerText = evos[Math.min(state.evolution, evos.length - 1)];
+        document.getElementById('evo-goal').innerText = `Goal: ${state.evoGoal.toLocaleString()}`;
+        document.getElementById('evo-bar').style.width = Math.min(100, (state.totalInEvo / state.evoGoal) * 100) + '%';
+        document.getElementById('frog-count').innerText = `Owned: ${state.myFrogs.length}`;
+
+        const pCost = Math.floor(150 * Math.pow(2.2, state.pads - 1));
+        const cCost = Math.floor(250 * Math.pow(1.7, state.clickLv - 1));
+        const tCost = Math.floor(5000 * Math.pow(3, state.totems));
+
+        document.getElementById('cost-pad').innerText = state.pads < 12 ? pCost.toLocaleString() : "MAX";
+        document.getElementById('cost-click').innerText = cCost.toLocaleString();
+        document.getElementById('cost-totem').innerText = tCost.toLocaleString();
+
+        document.getElementById('btn-add-pad').disabled = state.ribbits < pCost || state.pads >= 12;
+        document.getElementById('btn-click').disabled = state.ribbits < cCost;
+        document.getElementById('btn-totem').disabled = state.ribbits < tCost;
+    }
+
+    function handlePadInteraction(padIdx, e) {
+        if (state.zenMode) return;
+        if (state.placingFrogId !== null) { confirmPlacement(padIdx); return; }
+        const power = 5 * Math.pow(1.5, state.clickLv - 1) * state.mult;
+        gainRibbits(power);
+        spawnText(e.clientX, e.clientY, `+${Math.floor(power)}`);
+        spawnRipple(e.clientX, e.clientY);
+    }
+
+    function handleGlobalDoubleClick() { if (state.zenMode) toggleZen(false); }
+
+    function buyPad() {
+        const cost = Math.floor(150 * Math.pow(2.2, state.pads - 1));
+        if (state.ribbits >= cost && state.pads < 12) {
+            state.ribbits -= cost;
+            const padId = state.pads;
+            const pad = document.createElement('div');
+            pad.className = 'lily-pad';
+            pad.id = `pad-${padId}`;
+            pad.style.left = (15 + Math.random() * 70) + '%';
+            pad.style.top = (15 + Math.random() * 70) + '%';
+            pad.onclick = (e) => handlePadInteraction(padId, e);
+            document.getElementById('main-cluster').appendChild(pad);
+            state.pads++;
+            updateUI();
+        }
+    }
+
+    setInterval(() => {
+        if (state.zenMode || state.placingFrogId !== null) return;
+        for (let i = 0; i < state.pads; i++) {
+            const pad = document.getElementById(`pad-${i}`);
+            const occupants = pad.querySelectorAll('.frog-sprite');
+            if (occupants.length === 0 && pad.dataset.spawning !== 'true') {
+                pad.dataset.spawning = 'true';
+                setTimeout(() => {
+                    if (state.zenMode) { pad.dataset.spawning = 'false'; return; }
+                    spawnWildFrog(i);
+                }, 4000);
+            }
+        }
+    }, 2000);
+
+    function spawnWildFrog(padIdx) {
+        const pad = document.getElementById(`pad-${padIdx}`);
+        if (!pad || pad.querySelectorAll('.frog-sprite').length > 0) {
+            if(pad) pad.dataset.spawning = 'false';
+            return;
+        }
+        const type = FROG_TYPES[Math.floor(Math.random() * FROG_TYPES.length)];
+        const frogEl = document.createElement('div');
+        frogEl.className = 'frog-sprite wild-frog';
+        frogEl.innerHTML = getFrogSVG(type);
+        frogEl.onclick = (e) => { e.stopPropagation(); initiateCatch(type, padIdx); };
+        pad.appendChild(frogEl);
+        pad.dataset.spawning = 'false';
+    }
+
+    function getFrogSVG(type) {
+        let pattern = '';
+        if (type.pattern === 'dots') pattern = `<circle cx="35" cy="40" r="3" fill="white" opacity="0.4"/><circle cx="65" cy="40" r="3" fill="white" opacity="0.4"/>`;
+        if (type.pattern === 'stripes') pattern = `<rect x="30" y="45" width="40" height="2" fill="white" opacity="0.3"/><rect x="30" y="55" width="40" height="2" fill="white" opacity="0.3"/>`;
+        return `<svg viewBox="0 0 100 100">
+            <ellipse cx="50" cy="55" rx="35" ry="30" fill="${type.color}" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
+            <circle cx="35" cy="35" r="10" fill="${type.color}"/>
+            <circle cx="65" cy="35" r="10" fill="${type.color}"/>
+            <circle cx="35" cy="35" r="4" fill="white"/>
+            <circle cx="35" cy="35" r="1.5" fill="black"/>
+            <circle cx="65" cy="35" r="4" fill="white"/>
+            <circle cx="65" cy="35" r="1.5" fill="black"/>
+            <path d="M35 70 Q50 80 65 70" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="3" stroke-linecap="round"/>
+            ${pattern}
+        </svg>`;
+    }
+
+    function initiateCatch(type, padIdx) {
+        state.currentCatch = { type, padIdx };
+        document.getElementById('catch-display').innerHTML = `<div class="w-32 h-32 mx-auto">${getFrogSVG(type)}</div>`;
+        document.getElementById('catch-name').innerText = type.species;
+        document.getElementById('catch-stats').innerText = `Weather Bonus: ${type.bonusWeather.toUpperCase()} (+${((type.bonusMult - 1) * 100).toFixed(0)}%)`;
+        document.getElementById('frog-name-input').value = "";
+        document.getElementById('catch-modal').style.display = 'flex';
+    }
+
+    function confirmCatch() {
+        const inputName = document.getElementById('frog-name-input').value.trim();
+        const finalName = inputName || state.currentCatch.type.species;
+        state.myFrogs.push({ id: Date.now(), typeId: state.currentCatch.type.id, name: finalName, padIndex: -1 });
+        const pad = document.getElementById(`pad-${state.currentCatch.padIdx}`);
+        if (pad) pad.innerHTML = '';
+        document.getElementById('catch-modal').style.display = 'none';
+        state.currentCatch = null;
+        updateUI();
+    }
+
+    function startPlacement(frogId) {
+        state.placingFrogId = frogId;
+        const frog = state.myFrogs.find(f => f.id === frogId);
+        closeFrogMenu();
+        const ui = document.getElementById('placing-ui');
+        document.getElementById('placing-msg').innerText = `Choose a Lily Pad for ${frog.name}`;
+        ui.style.display = 'block';
+        for (let i = 0; i < state.pads; i++) {
+            const pad = document.getElementById(`pad-${i}`);
+            if (state.myFrogs.filter(f => f.padIndex === i).length < MAX_FROGS_PER_PAD) pad.classList.add('selectable');
+        }
+    }
+
+    function confirmPlacement(padIdx) {
+        const frog = state.myFrogs.find(f => f.id === state.placingFrogId);
+        if (state.myFrogs.filter(f => f.padIndex === padIdx).length >= MAX_FROGS_PER_PAD) return;
+        frog.padIndex = padIdx;
+        cancelPlacement();
+        refreshPondFrogs();
+        updateUI();
+    }
+
+    function cancelPlacement() {
+        state.placingFrogId = null;
+        document.getElementById('placing-ui').style.display = 'none';
+        document.querySelectorAll('.lily-pad').forEach(p => p.classList.remove('selectable'));
+    }
+
+    function refreshPondFrogs() {
+        for (let i = 0; i < 12; i++) {
+            const p = document.getElementById(`pad-${i}`);
+            if (p) p.innerHTML = '';
+        }
+        state.myFrogs.forEach(f => {
+            if (f.padIndex !== -1) {
+                const pad = document.getElementById(`pad-${f.padIndex}`);
+                if (pad) {
+                    const sprite = document.createElement('div');
+                    sprite.className = 'frog-sprite';
+                    sprite.innerHTML = getFrogSVG(FROG_TYPES[f.typeId]);
+                    sprite.title = f.name;
+                    pad.appendChild(sprite);
+                }
+            }
+        });
+    }
+
+    function removeFromPond(frogId) {
+        const frog = state.myFrogs.find(f => f.id === frogId);
+        if (frog) { frog.padIndex = -1; refreshPondFrogs(); openFrogMenu(); updateUI(); }
+    }
+
+    function openFrogMenu() {
+        const list = document.getElementById('frogs-list');
+        list.innerHTML = state.myFrogs.length === 0 ? `<div class="text-center opacity-50 py-10">No frogs yet. Wait for a visitor!</div>` : '';
+        state.myFrogs.forEach(frog => {
+            const type = FROG_TYPES[frog.typeId];
+            const div = document.createElement('div');
+            div.className = 'frog-list-item';
+            const isOnPad = frog.padIndex !== -1;
+            div.innerHTML = `<div class="w-16 h-16">${getFrogSVG(type)}</div><div class="flex-1 text-left"><div class="font-bold text-xl">${frog.name}</div><div class="text-xs text-yellow-200 uppercase">${type.species} • Bonus: ${type.bonusWeather}</div></div><div class="flex flex-col gap-1">${isOnPad ? `<button onclick="removeFromPond(${frog.id})" class="px-4 py-2 rounded-lg text-sm font-bold bg-red-500">Recall</button>` : `<button onclick="startPlacement(${frog.id})" class="px-4 py-2 rounded-lg text-sm font-bold bg-yellow-500 text-green-900">Place</button>`}</div>`;
+            list.appendChild(div);
+        });
+        document.getElementById('frog-menu-modal').style.display = 'flex';
+    }
+
+    function closeFrogMenu() { document.getElementById('frog-menu-modal').style.display = 'none'; }
+    function buyClick() { const cost = Math.floor(250 * Math.pow(1.7, state.clickLv - 1)); if (state.ribbits >= cost) { state.ribbits -= cost; state.clickLv++; updateUI(); } }
+    function buyTotem() { const cost = Math.floor(5000 * Math.pow(3, state.totems)); if (state.ribbits >= cost) { state.ribbits -= cost; state.totems++; updateUI(); } }
+
+    function toggleZen(active) {
+        state.zenMode = active;
+        document.body.classList.toggle('zen-active', active);
+        const toast = document.getElementById('zen-toast');
+        if (active) { toast.style.opacity = '1'; setTimeout(() => toast.style.opacity = '0', 4000); startZenEcosystem(); }
+        else { stopZenEcosystem(); refreshPondFrogs(); }
+    }
+
+    let zenIntervals = [];
+    function startZenEcosystem() {
+        stopZenEcosystem();
+        zenIntervals.push(setInterval(() => spawnFish(), 3000));
+        zenIntervals.push(setInterval(() => randomizeWeather(), 15000));
+    }
+    function stopZenEcosystem() { zenIntervals.forEach(clearInterval); zenIntervals = []; document.getElementById('fish-layer').innerHTML = ''; document.getElementById('fx-layer').innerHTML = ''; document.getElementById('weather-icon').innerText = '☀️'; }
+
+    function randomizeWeather() {
+        const types = ['idle', 'rain', 'snow', 'lightning'];
+        state.weather = types[Math.floor(Math.random() * types.length)];
+        const fx = document.getElementById('fx-layer'); fx.innerHTML = '';
+        const icon = document.getElementById('weather-icon');
+        switch(state.weather) {
+            case 'idle': icon.innerText = '☀️'; break;
+            case 'rain': icon.innerText = '🌧️'; for(let i=0; i<40; i++) { const d = document.createElement('div'); d.className = 'rain-drop'; d.style.left = Math.random() * 100 + 'vw'; d.style.animationDelay = Math.random() + 's'; fx.appendChild(d); } break;
+            case 'snow': icon.innerText = '❄️'; for(let i=0; i<30; i++) { const f = document.createElement('div'); f.className = 'snow-flake'; const s = 4 + Math.random()*6; f.style.width = s+'px'; f.style.height = s+'px'; f.style.left = Math.random()*100+'vw'; f.style.animationDelay = Math.random()*3+'s'; fx.appendChild(f); } break;
+            case 'lightning': icon.innerText = '⛈️'; break;
+        }
+        updateUI();
+    }
+
+    function spawnFish() {
+        const fish = document.createElement('div'); fish.className = 'absolute';
+        const color = ['#ff8c00', '#ffffff', '#ffd700'][Math.floor(Math.random()*3)];
+        fish.innerHTML = `<svg width="50" height="25"><ellipse cx="25" cy="12" rx="20" ry="8" fill="${color}" opacity="0.3"/></svg>`;
+        const side = Math.random() > 0.5; let x = side ? -60 : window.innerWidth + 60;
+        fish.style.left = x + 'px'; fish.style.top = Math.random() * window.innerHeight + 'px';
+        document.getElementById('fish-layer').appendChild(fish);
+        fish.animate([{ left: x + 'px' }, { left: (side ? window.innerWidth + 60 : -60) + 'px' }], { duration: 10000 });
+        setTimeout(() => fish.remove(), 10000);
+    }
+
+    function spawnRipple(x, y) {
+        const r = document.createElement('div'); r.style.cssText = `position:absolute; width:10px; height:10px; border:2px solid rgba(255,255,255,0.4); border-radius:50%; pointer-events:none; left:${x}px; top:${y}px; transition: all 1s ease-out; opacity:0.6; z-index:1;`;
+        document.body.appendChild(r); setTimeout(() => { r.style.transform = "scale(15)"; r.style.opacity = "0"; }, 20); setTimeout(() => r.remove(), 1000);
+    }
+    function spawnText(x, y, txt) {
+        const t = document.createElement('div'); t.className = 'floating-text'; t.innerText = txt; t.style.left = x + 'px'; t.style.top = y + 'px';
+        document.body.appendChild(t); setTimeout(() => t.remove(), 1200);
+    }
+
+    setInterval(() => {
+        let passive = state.totems * 50;
+        state.myFrogs.forEach(f => { if (f.padIndex !== -1) { const t = FROG_TYPES[f.typeId]; let p = 5; if (t.bonusWeather === state.weather) p *= t.bonusMult; passive += p; } });
+        if (passive > 0) gainRibbits((passive * state.mult * (state.zenMode ? 1.5 : 1.0)) / 10);
+    }, 100);
+    updateUI();
+</script>
+</body>
+</html>
