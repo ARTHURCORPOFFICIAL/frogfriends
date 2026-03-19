@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frogfriends</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zen Ghibli Pond - Ascended AFK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap');
@@ -33,17 +33,33 @@
             background: linear-gradient(to bottom, var(--bg-top) 0%, var(--bg-bottom) 100%);
             overflow: hidden;
             transition: background 3s ease-in-out;
+            cursor: pointer;
         }
 
-        /* Spirit Realm Background Overrides */
+        /* Spirit Realm Style Override */
         body.zen-active #pond-container {
             background: linear-gradient(to bottom, var(--celestial-top) 0%, var(--celestial-bottom) 100%) !important;
         }
 
-        /* --- Layers --- */
-        #fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        #fish-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
-        #spirit-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+        /* THE EXIT SHIELD: High-priority layer that catches double-clicks/taps in Zen mode */
+        #zen-exit-detector {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: none; 
+            cursor: zoom-out;
+        }
+        body.zen-active #zen-exit-detector {
+            display: block;
+        }
+
+        /* Decorative Layers */
+        #fx-layer, #fish-layer, #spirit-layer { 
+            position: absolute; 
+            inset: 0; 
+            pointer-events: none; 
+            z-index: 5; 
+        }
         
         .rain-drop {
             position: absolute;
@@ -64,23 +80,12 @@
         }
         @keyframes snow-fall { to { transform: translateY(100vh) rotate(360deg); } }
 
-        .lightning-flash {
-            position: absolute;
-            inset: 0;
-            background: white;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 10;
-        }
-        .flash-active { animation: lightning-anim 0.2s ease-out; }
-        @keyframes lightning-anim { 0% { opacity: 0; } 50% { opacity: 0.8; } 100% { opacity: 0; } }
-
         /* UI Styling */
         .ui-root { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
         .ui-root > * { pointer-events: auto; }
         .ui-element { transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1), transform 1.5s; }
         
-        /* Hide EVERYTHING in Zen Mode */
+        /* Transition UI out in Zen Mode */
         .zen-active .ui-element { 
             opacity: 0 !important; 
             pointer-events: none !important; 
@@ -193,35 +198,6 @@
         }
         @keyframes float-up { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-120px); } }
 
-        #frogs-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .frog-list-item {
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 10px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .placing-overlay {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 15px 30px;
-            border-radius: 20px;
-            z-index: 3000;
-            pointer-events: none;
-            display: none;
-            border: 2px solid #fde047;
-            text-align: center;
-        }
-
         #zen-toast {
             position: fixed;
             bottom: 30px;
@@ -233,19 +209,44 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 1s;
-            z-index: 500;
+            z-index: 10001;
             font-size: 0.9rem;
-            letter-spacing: 1px;
+            color: white;
+        }
+
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 45px;
+            height: 45px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 5000;
+            color: white;
+            transition: all 0.2s;
+        }
+        .fullscreen-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
         }
     </style>
 </head>
 <body>
 
-<div id="pond-container" ondblclick="handleGlobalDoubleClick()">
+<!-- Invisible detector specifically for exiting Zen mode -->
+<div id="zen-exit-detector"></div>
+
+<div id="pond-container" onclick="handlePondClick(event)">
     <div id="fx-layer"></div>
     <div id="fish-layer"></div>
     <div id="spirit-layer"></div>
-    <div id="lightning-layer" class="lightning-flash"></div>
 
     <div id="game-center" class="absolute inset-0">
         <div id="main-cluster" class="relative w-full h-full">
@@ -253,17 +254,25 @@
         </div>
     </div>
 
-    <div id="placing-ui" class="placing-overlay">
-        <div class="text-xl font-bold text-yellow-300">PLACEMENT MODE</div>
-        <div id="placing-msg" class="text-sm opacity-80">Click a lily pad to place your frog</div>
-        <button onclick="cancelPlacement()" class="mt-2 text-xs bg-red-500 px-3 py-1 rounded-full pointer-events-auto">Cancel</button>
-    </div>
-
-    <div id="zen-toast">Double tap to return</div>
-
+    <!-- UI Elements -->
     <div id="ui-wrapper">
+        <!-- Fullscreen Button -->
+        <button class="fullscreen-btn ui-element" onclick="toggleFullscreen()" title="Toggle Fullscreen">
+            <svg id="fs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+        </button>
+
+        <div id="placing-ui" class="fixed top-5 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-4 rounded-3xl border-2 border-yellow-400 z-[3000] text-center hidden pointer-events-none">
+            <div class="text-xl font-bold text-yellow-300">PLACEMENT MODE</div>
+            <div id="placing-msg" class="text-sm opacity-80">Click a lily pad</div>
+            <button onclick="cancelPlacement()" class="mt-2 text-xs bg-red-500 px-3 py-1 rounded-full pointer-events-auto">Cancel</button>
+        </div>
+
+        <div id="zen-toast">Double tap to return</div>
+
         <div class="ui-root">
-            <div class="absolute top-10 left-10 ui-element">
+            <div class="absolute top-10 left-20 ui-element">
                 <div class="flex items-baseline gap-3">
                     <span class="text-7xl font-bold drop-shadow-lg" id="score">0</span>
                     <span class="text-2xl text-yellow-300 font-bold" id="multiplier">x1.0</span>
@@ -313,6 +322,7 @@
     </div>
 </div>
 
+<!-- Modals -->
 <div id="catch-modal" class="modal-overlay">
     <div class="modal-content">
         <div id="catch-display" class="mb-6"></div>
@@ -332,18 +342,18 @@
             <h2 class="text-3xl font-bold">Your Pond Friends</h2>
             <button onclick="closeFrogMenu()" class="text-4xl opacity-50 hover:opacity-100">&times;</button>
         </div>
-        <div id="frogs-list" class="grid grid-cols-1 gap-3 pr-2"></div>
+        <div id="frogs-list" class="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2"></div>
     </div>
 </div>
 
 <script>
     const MAX_FROGS_PER_PAD = 4;
-    const FROG_TYPES = Array.from({ length: 150 }, (_, i) => {
+    const FROG_TYPES = Array.from({ length: 50 }, (_, i) => {
         const weathers = ['idle', 'rain', 'snow', 'lightning'];
         const baseColors = ['#86efac', '#f87171', '#60a5fa', '#fbbf24', '#c084fc', '#f472b6', '#ffffff', '#4ade80'];
         return {
             id: i,
-            species: `Species #${i + 1}`,
+            species: `Frog Spirit #${i + 1}`,
             color: baseColors[i % baseColors.length],
             bonusWeather: weathers[i % weathers.length],
             bonusMult: 1.1 + (i * 0.05),
@@ -370,28 +380,34 @@
         placingFrogId: null
     };
 
-    function gainRibbits(amt) {
-        state.ribbits += amt;
-        state.totalInEvo += amt;
-        if (state.totalInEvo >= state.evoGoal) evolve();
-        updateUI();
+    // --- FULLSCREEN LOGIC ---
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.warn(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+            document.getElementById('fs-icon').innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>';
+        } else {
+            document.exitFullscreen();
+            document.getElementById('fs-icon').innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
+        }
     }
 
-    function evolve() {
-        state.evolution++;
-        state.totalInEvo = 0;
-        state.evoGoal = Math.floor(state.evoGoal * 2.8);
-        state.mult += 0.5 + (state.evolution * 0.2);
-        
-        const colors = [
-            ['#a7f3d0', '#4fac82'], ['#fde68a', '#d97706'], ['#fbcfe8', '#db2777'], 
-            ['#ddd6fe', '#7c3aed'], ['#bae6fd', '#0284c7'], ['#1e293b', '#0f172a']
-        ];
-        const pair = colors[Math.min(state.evolution, colors.length-1)];
-        document.getElementById('pond-container').style.setProperty('--bg-top', pair[0]);
-        document.getElementById('pond-container').style.setProperty('--bg-bottom', pair[1]);
-        randomizeWeather();
-    }
+    // --- EXIT LOGIC ---
+    let lastTapTime = 0;
+    const detector = document.getElementById('zen-exit-detector');
+
+    detector.ondblclick = () => toggleZen(false);
+
+    detector.addEventListener('touchstart', (e) => {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTapTime;
+        if (tapLength < 300 && tapLength > 0) {
+            toggleZen(false);
+            e.preventDefault();
+        }
+        lastTapTime = currentTime;
+    });
 
     function updateUI() {
         const frogBonusMult = state.myFrogs.reduce((acc, f) => {
@@ -421,8 +437,32 @@
         document.getElementById('btn-totem').disabled = state.ribbits < tCost;
     }
 
+    function gainRibbits(amt) {
+        state.ribbits += amt;
+        state.totalInEvo += amt;
+        if (state.totalInEvo >= state.evoGoal) evolve();
+        updateUI();
+    }
+
+    function evolve() {
+        state.evolution++;
+        state.totalInEvo = 0;
+        state.evoGoal = Math.floor(state.evoGoal * 2.8);
+        state.mult += 0.5 + (state.evolution * 0.2);
+        
+        const colors = [
+            ['#a7f3d0', '#4fac82'], ['#fde68a', '#d97706'], ['#fbcfe8', '#db2777'], 
+            ['#ddd6fe', '#7c3aed'], ['#bae6fd', '#0284c7'], ['#1e293b', '#0f172a']
+        ];
+        const pair = colors[Math.min(state.evolution, colors.length-1)];
+        document.getElementById('pond-container').style.setProperty('--bg-top', pair[0]);
+        document.getElementById('pond-container').style.setProperty('--bg-bottom', pair[1]);
+        randomizeWeather();
+    }
+
     function handlePadInteraction(padIdx, e) {
         if (state.zenMode) return;
+        e.stopPropagation(); 
         if (state.placingFrogId !== null) { confirmPlacement(padIdx); return; }
         const power = 5 * Math.pow(1.5, state.clickLv - 1) * state.mult;
         gainRibbits(power);
@@ -430,7 +470,10 @@
         spawnRipple(e.clientX, e.clientY);
     }
 
-    function handleGlobalDoubleClick() { if (state.zenMode) toggleZen(false); }
+    function handlePondClick(e) {
+        if (state.zenMode) return;
+        spawnRipple(e.clientX, e.clientY);
+    }
 
     function buyPad() {
         const cost = Math.floor(150 * Math.pow(2.2, state.pads - 1));
@@ -448,21 +491,6 @@
             updateUI();
         }
     }
-
-    setInterval(() => {
-        if (state.zenMode || state.placingFrogId !== null) return;
-        for (let i = 0; i < state.pads; i++) {
-            const pad = document.getElementById(`pad-${i}`);
-            const occupants = pad.querySelectorAll('.frog-sprite');
-            if (occupants.length === 0 && pad.dataset.spawning !== 'true') {
-                pad.dataset.spawning = 'true';
-                setTimeout(() => {
-                    if (state.zenMode) { pad.dataset.spawning = 'false'; return; }
-                    spawnWildFrog(i);
-                }, 4000);
-            }
-        }
-    }, 2000);
 
     function spawnWildFrog(padIdx) {
         const pad = document.getElementById(`pad-${padIdx}`);
@@ -483,7 +511,7 @@
         let pattern = '';
         if (type.pattern === 'dots') pattern = `<circle cx="35" cy="40" r="3" fill="white" opacity="0.4"/><circle cx="65" cy="40" r="3" fill="white" opacity="0.4"/>`;
         if (type.pattern === 'stripes') pattern = `<rect x="30" y="45" width="40" height="2" fill="white" opacity="0.3"/><rect x="30" y="55" width="40" height="2" fill="white" opacity="0.3"/>`;
-        return `<svg viewBox="0 0 100 100">
+        return `<svg viewBox="0 0 100 100" style="width:100%; height:100%;">
             <ellipse cx="50" cy="55" rx="35" ry="30" fill="${type.color}" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
             <circle cx="35" cy="35" r="10" fill="${type.color}"/>
             <circle cx="65" cy="35" r="10" fill="${type.color}"/>
@@ -500,7 +528,7 @@
         state.currentCatch = { type, padIdx };
         document.getElementById('catch-display').innerHTML = `<div class="w-32 h-32 mx-auto">${getFrogSVG(type)}</div>`;
         document.getElementById('catch-name').innerText = type.species;
-        document.getElementById('catch-stats').innerText = `Weather Bonus: ${type.bonusWeather.toUpperCase()} (+${((type.bonusMult - 1) * 100).toFixed(0)}%)`;
+        document.getElementById('catch-stats').innerText = `Bonus: ${type.bonusWeather.toUpperCase()} (+${((type.bonusMult - 1) * 100).toFixed(0)}%)`;
         document.getElementById('frog-name-input').value = "";
         document.getElementById('catch-modal').style.display = 'flex';
     }
@@ -518,20 +546,17 @@
 
     function startPlacement(frogId) {
         state.placingFrogId = frogId;
-        const frog = state.myFrogs.find(f => f.id === frogId);
         closeFrogMenu();
-        const ui = document.getElementById('placing-ui');
-        document.getElementById('placing-msg').innerText = `Choose a Lily Pad for ${frog.name}`;
-        ui.style.display = 'block';
-        for (let i = 0; i < state.pads; i++) {
-            const pad = document.getElementById(`pad-${i}`);
-            if (state.myFrogs.filter(f => f.padIndex === i).length < MAX_FROGS_PER_PAD) pad.classList.add('selectable');
-        }
+        document.getElementById('placing-ui').style.display = 'block';
+        document.querySelectorAll('.lily-pad').forEach((pad, idx) => {
+            if (state.myFrogs.filter(f => f.padIndex === idx).length < MAX_FROGS_PER_PAD) {
+                pad.classList.add('selectable');
+            }
+        });
     }
 
     function confirmPlacement(padIdx) {
         const frog = state.myFrogs.find(f => f.id === state.placingFrogId);
-        if (state.myFrogs.filter(f => f.padIndex === padIdx).length >= MAX_FROGS_PER_PAD) return;
         frog.padIndex = padIdx;
         cancelPlacement();
         refreshPondFrogs();
@@ -545,10 +570,7 @@
     }
 
     function refreshPondFrogs() {
-        for (let i = 0; i < 12; i++) {
-            const p = document.getElementById(`pad-${i}`);
-            if (p) p.innerHTML = '';
-        }
+        document.querySelectorAll('.lily-pad').forEach(p => p.innerHTML = '');
         state.myFrogs.forEach(f => {
             if (f.padIndex !== -1) {
                 const pad = document.getElementById(`pad-${f.padIndex}`);
@@ -563,60 +585,64 @@
         });
     }
 
-    function removeFromPond(frogId) {
-        const frog = state.myFrogs.find(f => f.id === frogId);
-        if (frog) { frog.padIndex = -1; refreshPondFrogs(); openFrogMenu(); updateUI(); }
-    }
-
-    function openFrogMenu() {
-        const list = document.getElementById('frogs-list');
-        list.innerHTML = state.myFrogs.length === 0 ? `<div class="text-center opacity-50 py-10">No frogs yet. Wait for a visitor!</div>` : '';
-        state.myFrogs.forEach(frog => {
-            const type = FROG_TYPES[frog.typeId];
-            const div = document.createElement('div');
-            div.className = 'frog-list-item';
-            const isOnPad = frog.padIndex !== -1;
-            div.innerHTML = `<div class="w-16 h-16">${getFrogSVG(type)}</div><div class="flex-1 text-left"><div class="font-bold text-xl">${frog.name}</div><div class="text-xs text-yellow-200 uppercase">${type.species} • Bonus: ${type.bonusWeather}</div></div><div class="flex flex-col gap-1">${isOnPad ? `<button onclick="removeFromPond(${frog.id})" class="px-4 py-2 rounded-lg text-sm font-bold bg-red-500">Recall</button>` : `<button onclick="startPlacement(${frog.id})" class="px-4 py-2 rounded-lg text-sm font-bold bg-yellow-500 text-green-900">Place</button>`}</div>`;
-            list.appendChild(div);
-        });
-        document.getElementById('frog-menu-modal').style.display = 'flex';
-    }
-
-    function closeFrogMenu() { document.getElementById('frog-menu-modal').style.display = 'none'; }
-    function buyClick() { const cost = Math.floor(250 * Math.pow(1.7, state.clickLv - 1)); if (state.ribbits >= cost) { state.ribbits -= cost; state.clickLv++; updateUI(); } }
-    function buyTotem() { const cost = Math.floor(5000 * Math.pow(3, state.totems)); if (state.ribbits >= cost) { state.ribbits -= cost; state.totems++; updateUI(); } }
-
     function toggleZen(active) {
         state.zenMode = active;
         document.body.classList.toggle('zen-active', active);
         const toast = document.getElementById('zen-toast');
-        if (active) { toast.style.opacity = '1'; setTimeout(() => toast.style.opacity = '0', 4000); startZenEcosystem(); }
-        else { stopZenEcosystem(); refreshPondFrogs(); }
+        if (active) {
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 3000);
+            startZenEcosystem();
+        } else {
+            stopZenEcosystem();
+            refreshPondFrogs();
+        }
+        updateUI();
     }
 
     let zenIntervals = [];
     function startZenEcosystem() {
         stopZenEcosystem();
         zenIntervals.push(setInterval(() => spawnFish(), 3000));
-        zenIntervals.push(setInterval(() => randomizeWeather(), 15000));
+        zenIntervals.push(setInterval(() => randomizeWeather(), 10000));
+        state.zenMult = 2.0;
     }
-    function stopZenEcosystem() { zenIntervals.forEach(clearInterval); zenIntervals = []; document.getElementById('fish-layer').innerHTML = ''; document.getElementById('fx-layer').innerHTML = ''; document.getElementById('weather-icon').innerText = '☀️'; }
+    function stopZenEcosystem() { 
+        zenIntervals.forEach(clearInterval); 
+        zenIntervals = []; 
+        document.getElementById('fish-layer').innerHTML = ''; 
+        document.getElementById('fx-layer').innerHTML = ''; 
+        state.zenMult = 1.0;
+        state.weather = 'idle';
+        document.getElementById('weather-icon').innerText = '☀️'; 
+    }
 
     function randomizeWeather() {
-        const types = ['idle', 'rain', 'snow', 'lightning'];
+        const types = ['idle', 'rain', 'snow'];
         state.weather = types[Math.floor(Math.random() * types.length)];
         const fx = document.getElementById('fx-layer'); fx.innerHTML = '';
         const icon = document.getElementById('weather-icon');
-        switch(state.weather) {
-            case 'idle': icon.innerText = '☀️'; break;
-            case 'rain': icon.innerText = '🌧️'; for(let i=0; i<40; i++) { const d = document.createElement('div'); d.className = 'rain-drop'; d.style.left = Math.random() * 100 + 'vw'; d.style.animationDelay = Math.random() + 's'; fx.appendChild(d); } break;
-            case 'snow': icon.innerText = '❄️'; for(let i=0; i<30; i++) { const f = document.createElement('div'); f.className = 'snow-flake'; const s = 4 + Math.random()*6; f.style.width = s+'px'; f.style.height = s+'px'; f.style.left = Math.random()*100+'vw'; f.style.animationDelay = Math.random()*3+'s'; fx.appendChild(f); } break;
-            case 'lightning': icon.innerText = '⛈️'; break;
-        }
+        if (state.weather === 'rain') {
+            icon.innerText = '🌧️';
+            for(let i=0; i<40; i++) {
+                const d = document.createElement('div'); d.className = 'rain-drop';
+                d.style.left = Math.random() * 100 + 'vw'; d.style.animationDelay = Math.random() + 's';
+                fx.appendChild(d);
+            }
+        } else if (state.weather === 'snow') {
+            icon.innerText = '❄️';
+            for(let i=0; i<30; i++) {
+                const f = document.createElement('div'); f.className = 'snow-flake';
+                const s = 4 + Math.random()*6; f.style.width = s+'px'; f.style.height = s+'px';
+                f.style.left = Math.random()*100+'vw'; f.style.animationDelay = Math.random()*3+'s';
+                fx.appendChild(f);
+            }
+        } else { icon.innerText = '☀️'; }
         updateUI();
     }
 
     function spawnFish() {
+        if (!state.zenMode) return;
         const fish = document.createElement('div'); fish.className = 'absolute';
         const color = ['#ff8c00', '#ffffff', '#ffd700'][Math.floor(Math.random()*3)];
         fish.innerHTML = `<svg width="50" height="25"><ellipse cx="25" cy="12" rx="20" ry="8" fill="${color}" opacity="0.3"/></svg>`;
@@ -636,11 +662,59 @@
         document.body.appendChild(t); setTimeout(() => t.remove(), 1200);
     }
 
+    function openFrogMenu() {
+        const list = document.getElementById('frogs-list');
+        list.innerHTML = state.myFrogs.length === 0 ? `<div class="text-center opacity-50 py-10">No frogs yet. Wait for a visitor!</div>` : '';
+        state.myFrogs.forEach(frog => {
+            const type = FROG_TYPES[frog.typeId];
+            const div = document.createElement('div');
+            div.className = 'bg-white/10 rounded-2xl p-4 mb-2 flex items-center gap-4';
+            const isOnPad = frog.padIndex !== -1;
+            div.innerHTML = `
+                <div class="w-16 h-16">${getFrogSVG(type)}</div>
+                <div class="flex-1">
+                    <div class="font-bold text-xl">${frog.name}</div>
+                    <div class="text-xs text-yellow-200 uppercase">${type.species} • Bonus: ${type.bonusWeather}</div>
+                </div>
+                <div>
+                    ${isOnPad ? `<button onclick="removeFromPond(${frog.id})" class="bg-red-500 px-4 py-2 rounded-xl font-bold">Recall</button>` : `<button onclick="startPlacement(${frog.id})" class="bg-yellow-500 text-green-900 px-4 py-2 rounded-xl font-bold">Place</button>`}
+                </div>`;
+            list.appendChild(div);
+        });
+        document.getElementById('frog-menu-modal').style.display = 'flex';
+    }
+
+    function closeFrogMenu() { document.getElementById('frog-menu-modal').style.display = 'none'; }
+    function removeFromPond(frogId) { const f = state.myFrogs.find(x => x.id === frogId); if(f) f.padIndex = -1; refreshPondFrogs(); openFrogMenu(); updateUI(); }
+    function buyClick() { const c = Math.floor(250 * Math.pow(1.7, state.clickLv - 1)); if(state.ribbits >= c){ state.ribbits -= c; state.clickLv++; updateUI(); }}
+    function buyTotem() { const c = Math.floor(5000 * Math.pow(3, state.totems)); if(state.ribbits >= c){ state.ribbits -= c; state.totems++; updateUI(); }}
+
+    // Main Game Loop
     setInterval(() => {
+        if (state.placingFrogId !== null) return;
+        
         let passive = state.totems * 50;
-        state.myFrogs.forEach(f => { if (f.padIndex !== -1) { const t = FROG_TYPES[f.typeId]; let p = 5; if (t.bonusWeather === state.weather) p *= t.bonusMult; passive += p; } });
-        if (passive > 0) gainRibbits((passive * state.mult * (state.zenMode ? 1.5 : 1.0)) / 10);
+        state.myFrogs.forEach(f => {
+            if (f.padIndex !== -1) {
+                const t = FROG_TYPES[f.typeId];
+                let p = 5;
+                if (t.bonusWeather === state.weather || t.bonusWeather === 'idle') p *= t.bonusMult;
+                passive += p;
+            }
+        });
+        if (passive > 0) gainRibbits((passive * state.mult * state.zenMult) / 10);
+
+        if (!state.zenMode) {
+            for (let i = 0; i < state.pads; i++) {
+                const p = document.getElementById(`pad-${i}`);
+                if (p && p.innerHTML === '' && p.dataset.spawning !== 'true') {
+                    p.dataset.spawning = 'true';
+                    setTimeout(() => spawnWildFrog(i), 5000 + Math.random() * 5000);
+                }
+            }
+        }
     }, 100);
+
     updateUI();
 </script>
 </body>
