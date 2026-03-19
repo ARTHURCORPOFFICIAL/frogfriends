@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zen Ghibli Pond - Ascended AFK</title>
+    <title>Zen Ghibli Pond - Infinite Ascension</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap');
@@ -32,16 +32,14 @@
             height: 100vh;
             background: linear-gradient(to bottom, var(--bg-top) 0%, var(--bg-bottom) 100%);
             overflow: hidden;
-            transition: background 3s ease-in-out;
+            transition: background 4s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
 
-        /* Spirit Realm Style Override */
         body.zen-active #pond-container {
             background: linear-gradient(to bottom, var(--celestial-top) 0%, var(--celestial-bottom) 100%) !important;
         }
 
-        /* THE EXIT SHIELD: High-priority layer that catches double-clicks/taps in Zen mode */
         #zen-exit-detector {
             position: fixed;
             inset: 0;
@@ -53,7 +51,6 @@
             display: block;
         }
 
-        /* Decorative Layers */
         #fx-layer, #fish-layer, #spirit-layer { 
             position: absolute; 
             inset: 0; 
@@ -80,12 +77,27 @@
         }
         @keyframes snow-fall { to { transform: translateY(100vh) rotate(360deg); } }
 
-        /* UI Styling */
+        .spirit-orb {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            filter: blur(4px);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            animation: drift 10s linear infinite;
+            opacity: 0.6;
+        }
+        @keyframes drift { 
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            20% { opacity: 0.6; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+
         .ui-root { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
         .ui-root > * { pointer-events: auto; }
         .ui-element { transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1), transform 1.5s; }
         
-        /* Transition UI out in Zen Mode */
         .zen-active .ui-element { 
             opacity: 0 !important; 
             pointer-events: none !important; 
@@ -126,7 +138,6 @@
         .pill-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 0px 0px #459470; }
         .pill-btn:disabled { opacity: 0.4; filter: grayscale(1); }
 
-        /* Lily Pads */
         .lily-pad {
             width: 120px;
             height: 100px;
@@ -153,7 +164,6 @@
         }
         @keyframes bobbing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
-        /* Frogs */
         .frog-sprite {
             width: 35px;
             height: 35px;
@@ -165,7 +175,6 @@
         .wild-frog { animation: hop-wild 2s ease-in-out infinite; }
         @keyframes hop-wild { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1) translateY(-5px); } }
 
-        /* Modals */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -232,15 +241,10 @@
             color: white;
             transition: all 0.2s;
         }
-        .fullscreen-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
     </style>
 </head>
 <body>
 
-<!-- Invisible detector specifically for exiting Zen mode -->
 <div id="zen-exit-detector"></div>
 
 <div id="pond-container" onclick="handlePondClick(event)">
@@ -254,9 +258,7 @@
         </div>
     </div>
 
-    <!-- UI Elements -->
     <div id="ui-wrapper">
-        <!-- Fullscreen Button -->
         <button class="fullscreen-btn ui-element" onclick="toggleFullscreen()" title="Toggle Fullscreen">
             <svg id="fs-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -281,10 +283,11 @@
                     <span id="evo-name">Morning Marsh</span>
                     <span id="weather-icon">☀️</span>
                 </div>
+                <div id="evo-desc" class="text-xs opacity-60 max-w-xs italic leading-tight mt-1">A quiet, humble beginning.</div>
             </div>
 
             <div class="absolute top-10 right-10 flex flex-col items-end ui-element">
-                <div class="text-[10px] font-bold opacity-70 mb-1 tracking-widest uppercase">Pond Soul</div>
+                <div class="text-[10px] font-bold opacity-70 mb-1 tracking-widest uppercase">Pond Ascension Level: <span id="evo-level">0</span></div>
                 <div class="w-64 h-3 bg-black/30 rounded-full overflow-hidden border border-white/20">
                     <div id="evo-bar" class="h-full bg-gradient-to-r from-yellow-200 to-yellow-500 transition-all duration-700" style="width: 0%"></div>
                 </div>
@@ -348,6 +351,21 @@
 
 <script>
     const MAX_FROGS_PER_PAD = 4;
+    
+    // Procedural Evo Components
+    const EVO_PREFIXES = ["Silent", "Dappled", "Golden", "Radiant", "Mist-Bound", "Eternal", "Hallowed", "Dancing", "Prismatic", "Abyssal", "Starlit", "Whispering", "Velvet", "Glimmering"];
+    const EVO_NOUNS = ["Marsh", "Reeds", "Valley", "Grotto", "Sanctuary", "Waters", "Spring", "Lagoon", "Hollow", "Glade", "Zenith", "Reflection", "Basin", "Meadow"];
+    const EVO_DESCS = [
+        "The spirits begin to acknowledge your presence.",
+        "A soft light dances across the surface of the water.",
+        "The air feels heavy with ancient magic.",
+        "Butterflies of light flutter in the distance.",
+        "Everything is perfectly still, and perfectly alive.",
+        "The ripples echo with the songs of a thousand frogs.",
+        "A place where time itself comes to rest.",
+        "The boundaries between worlds begin to blur."
+    ];
+
     const FROG_TYPES = Array.from({ length: 50 }, (_, i) => {
         const weathers = ['idle', 'rain', 'snow', 'lightning'];
         const baseColors = ['#86efac', '#f87171', '#60a5fa', '#fbbf24', '#c084fc', '#f472b6', '#ffffff', '#4ade80'];
@@ -360,8 +378,6 @@
             pattern: i % 3 === 0 ? 'dots' : i % 3 === 1 ? 'stripes' : 'none'
         };
     });
-
-    const evos = ["Morning Marsh", "Sun-Dappled Reeds", "Hidden Lotus Valley", "Mist-Covered Grotto", "Twilight Sanctuary", "Celestial Waters"];
     
     let state = {
         ribbits: 0,
@@ -380,12 +396,23 @@
         placingFrogId: null
     };
 
-    // --- FULLSCREEN LOGIC ---
+    function generateEvoName(level) {
+        if (level === 0) return "Morning Marsh";
+        const p = EVO_PREFIXES[Math.floor((level * 7) % EVO_PREFIXES.length)];
+        const n = EVO_NOUNS[Math.floor((level * 13) % EVO_NOUNS.length)];
+        return `${p} ${n}`;
+    }
+
+    function generateEvoColor(level) {
+        // Deterministic but feels random/progressive
+        const hue1 = (140 + (level * 25)) % 360;
+        const hue2 = (hue1 + 40) % 360;
+        return [`hsl(${hue1}, 50%, 80%)`, `hsl(${hue2}, 40%, 45%)` ];
+    }
+
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.warn(`Error attempting to enable fullscreen: ${err.message}`);
-            });
+            document.documentElement.requestFullscreen().catch(() => {});
             document.getElementById('fs-icon').innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>';
         } else {
             document.exitFullscreen();
@@ -393,19 +420,13 @@
         }
     }
 
-    // --- EXIT LOGIC ---
     let lastTapTime = 0;
     const detector = document.getElementById('zen-exit-detector');
-
     detector.ondblclick = () => toggleZen(false);
-
     detector.addEventListener('touchstart', (e) => {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTapTime;
-        if (tapLength < 300 && tapLength > 0) {
-            toggleZen(false);
-            e.preventDefault();
-        }
+        if (tapLength < 300 && tapLength > 0) { toggleZen(false); e.preventDefault(); }
         lastTapTime = currentTime;
     });
 
@@ -419,7 +440,8 @@
         const totalMult = state.mult * state.zenMult * frogBonusMult;
         document.getElementById('score').innerText = Math.floor(state.ribbits).toLocaleString();
         document.getElementById('multiplier').innerText = `x${totalMult.toFixed(1)}`;
-        document.getElementById('evo-name').innerText = evos[Math.min(state.evolution, evos.length - 1)];
+        document.getElementById('evo-name').innerText = generateEvoName(state.evolution);
+        document.getElementById('evo-level').innerText = state.evolution;
         document.getElementById('evo-goal').innerText = `Goal: ${state.evoGoal.toLocaleString()}`;
         document.getElementById('evo-bar').style.width = Math.min(100, (state.totalInEvo / state.evoGoal) * 100) + '%';
         document.getElementById('frog-count').innerText = `Owned: ${state.myFrogs.length}`;
@@ -450,14 +472,26 @@
         state.evoGoal = Math.floor(state.evoGoal * 2.8);
         state.mult += 0.5 + (state.evolution * 0.2);
         
-        const colors = [
-            ['#a7f3d0', '#4fac82'], ['#fde68a', '#d97706'], ['#fbcfe8', '#db2777'], 
-            ['#ddd6fe', '#7c3aed'], ['#bae6fd', '#0284c7'], ['#1e293b', '#0f172a']
-        ];
-        const pair = colors[Math.min(state.evolution, colors.length-1)];
+        const pair = generateEvoColor(state.evolution);
         document.getElementById('pond-container').style.setProperty('--bg-top', pair[0]);
         document.getElementById('pond-container').style.setProperty('--bg-bottom', pair[1]);
+        
+        document.getElementById('evo-desc').innerText = EVO_DESCS[Math.floor(Math.random() * EVO_DESCS.length)];
+        
+        spawnSpiritBurst();
         randomizeWeather();
+    }
+
+    function spawnSpiritBurst() {
+        for(let i=0; i<15; i++) {
+            const orb = document.createElement('div');
+            orb.className = 'spirit-orb';
+            orb.style.left = (20 + Math.random() * 60) + 'vw';
+            orb.style.top = (20 + Math.random() * 60) + 'vh';
+            orb.style.animationDelay = (Math.random() * 2) + 's';
+            document.getElementById('spirit-layer').appendChild(orb);
+            setTimeout(() => orb.remove(), 10000);
+        }
     }
 
     function handlePadInteraction(padIdx, e) {
@@ -605,6 +639,7 @@
         stopZenEcosystem();
         zenIntervals.push(setInterval(() => spawnFish(), 3000));
         zenIntervals.push(setInterval(() => randomizeWeather(), 10000));
+        zenIntervals.push(setInterval(() => spawnSpiritOrb(), 2000));
         state.zenMult = 2.0;
     }
     function stopZenEcosystem() { 
@@ -612,6 +647,7 @@
         zenIntervals = []; 
         document.getElementById('fish-layer').innerHTML = ''; 
         document.getElementById('fx-layer').innerHTML = ''; 
+        document.getElementById('spirit-layer').innerHTML = '';
         state.zenMult = 1.0;
         state.weather = 'idle';
         document.getElementById('weather-icon').innerText = '☀️'; 
@@ -653,6 +689,15 @@
         setTimeout(() => fish.remove(), 10000);
     }
 
+    function spawnSpiritOrb() {
+        const orb = document.createElement('div');
+        orb.className = 'spirit-orb';
+        orb.style.left = Math.random() * 100 + 'vw';
+        orb.style.top = '110vh';
+        document.getElementById('spirit-layer').appendChild(orb);
+        setTimeout(() => orb.remove(), 10000);
+    }
+
     function spawnRipple(x, y) {
         const r = document.createElement('div'); r.style.cssText = `position:absolute; width:10px; height:10px; border:2px solid rgba(255,255,255,0.4); border-radius:50%; pointer-events:none; left:${x}px; top:${y}px; transition: all 1s ease-out; opacity:0.6; z-index:1;`;
         document.body.appendChild(r); setTimeout(() => { r.style.transform = "scale(15)"; r.style.opacity = "0"; }, 20); setTimeout(() => r.remove(), 1000);
@@ -689,7 +734,6 @@
     function buyClick() { const c = Math.floor(250 * Math.pow(1.7, state.clickLv - 1)); if(state.ribbits >= c){ state.ribbits -= c; state.clickLv++; updateUI(); }}
     function buyTotem() { const c = Math.floor(5000 * Math.pow(3, state.totems)); if(state.ribbits >= c){ state.ribbits -= c; state.totems++; updateUI(); }}
 
-    // Main Game Loop
     setInterval(() => {
         if (state.placingFrogId !== null) return;
         
@@ -707,9 +751,9 @@
         if (!state.zenMode) {
             for (let i = 0; i < state.pads; i++) {
                 const p = document.getElementById(`pad-${i}`);
-                if (p && p.innerHTML === '' && p.dataset.spawning !== 'true') {
+                if (p && p.querySelectorAll('.frog-sprite').length === 0 && p.dataset.spawning !== 'true') {
                     p.dataset.spawning = 'true';
-                    setTimeout(() => spawnWildFrog(i), 5000 + Math.random() * 5000);
+                    setTimeout(() => spawnWildFrog(i), 5000 + Math.random() * 8000);
                 }
             }
         }
