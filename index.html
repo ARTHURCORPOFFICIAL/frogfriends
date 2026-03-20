@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Frogfriends</title>
+    <title>Zen Ghibli Pond - Infinite Ascension</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap');
@@ -162,6 +162,19 @@
             transform: scale(1.1);
             z-index: 50;
         }
+        .lily-pad.is-full {
+            filter: grayscale(0.5) contrast(0.8);
+            cursor: not-allowed;
+        }
+        .lily-pad.shake {
+            animation: shake 0.4s ease-in-out;
+            outline: 4px solid #ef4444 !important;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0) scale(1.1); }
+            25% { transform: translateX(-5px) scale(1.1); }
+            75% { transform: translateX(5px) scale(1.1); }
+        }
         @keyframes bobbing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 
         .frog-sprite {
@@ -241,6 +254,11 @@
             color: white;
             transition: all 0.2s;
         }
+
+        .input-error {
+            border-color: #ef4444 !important;
+            animation: shake 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -267,7 +285,7 @@
 
         <div id="placing-ui" class="fixed top-5 left-1/2 -translate-x-1/2 bg-black/80 px-8 py-4 rounded-3xl border-2 border-yellow-400 z-[3000] text-center hidden pointer-events-none">
             <div class="text-xl font-bold text-yellow-300">PLACEMENT MODE</div>
-            <div id="placing-msg" class="text-sm opacity-80">Click a lily pad</div>
+            <div id="placing-msg" class="text-sm opacity-80">Select an available lily pad (Max 4)</div>
             <button onclick="cancelPlacement()" class="mt-2 text-xs bg-red-500 px-3 py-1 rounded-full pointer-events-auto">Cancel</button>
         </div>
 
@@ -333,7 +351,8 @@
         <p class="text-yellow-200 mb-4" id="catch-stats"></p>
         <div class="mb-6">
             <label class="block text-xs uppercase opacity-70 mb-1">Name your frog</label>
-            <input type="text" id="frog-name-input" class="w-full bg-black/30 border border-white/20 rounded-xl p-3 text-center text-xl outline-none" placeholder="Enter name...">
+            <input type="text" id="frog-name-input" class="w-full bg-black/30 border border-white/20 rounded-xl p-3 text-center text-xl outline-none" placeholder="Enter name..." maxlength="15">
+            <p id="profanity-warning" class="text-red-400 text-xs mt-1 hidden">Spirits prefer a more peaceful name...</p>
         </div>
         <button onclick="confirmCatch()" class="w-full bg-yellow-400 text-green-900 font-bold py-4 rounded-xl text-xl hover:bg-yellow-300 transition-colors">WELCOME HOME</button>
     </div>
@@ -352,6 +371,13 @@
 <script>
     const MAX_FROGS_PER_PAD = 4;
     
+    // Profanity Filter Configuration
+    const BANNED_TERMS = [
+        'fuck', 'shit', 'ass', 'bitch', 'cunt', 'dick', 'pussy', 'nigger', 'faggot', 'cock', 'bastard', 'slut', 'whore',
+        'fuk', 'shit', 'biatch', 'azz', 'f@g', 'fag', 'retard', 'cum', 'clit', 'dyke', 'tit', 'boob', 'porn', 'sex'
+    ];
+    const SPIRIT_NAMES = ["Komorebi", "Susuwatari", "Kodama", "Teto", "Yubaba", "Calcifer", "Jiji", "Haku", "Boh", "Neko", "Zen", "Mochi", "Soot", "Moss", "Rain", "Dew", "Leaf", "Mist", "Spirit"];
+
     // Procedural Evo Components
     const EVO_PREFIXES = ["Silent", "Dappled", "Golden", "Radiant", "Mist-Bound", "Eternal", "Hallowed", "Dancing", "Prismatic", "Abyssal", "Starlit", "Whispering", "Velvet", "Glimmering"];
     const EVO_NOUNS = ["Marsh", "Reeds", "Valley", "Grotto", "Sanctuary", "Waters", "Spring", "Lagoon", "Hollow", "Glade", "Zenith", "Reflection", "Basin", "Meadow"];
@@ -396,6 +422,17 @@
         placingFrogId: null
     };
 
+    function checkProfanity(text) {
+        if (!text) return false;
+        const clean = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Leetspeak normalization
+        const normalized = clean
+            .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
+            .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+            
+        return BANNED_TERMS.some(term => normalized.includes(term));
+    }
+
     function generateEvoName(level) {
         if (level === 0) return "Morning Marsh";
         const p = EVO_PREFIXES[Math.floor((level * 7) % EVO_PREFIXES.length)];
@@ -404,7 +441,6 @@
     }
 
     function generateEvoColor(level) {
-        // Deterministic but feels random/progressive
         const hue1 = (140 + (level * 25)) % 360;
         const hue2 = (hue1 + 40) % 360;
         return [`hsl(${hue1}, 50%, 80%)`, `hsl(${hue2}, 40%, 45%)` ];
@@ -497,7 +533,19 @@
     function handlePadInteraction(padIdx, e) {
         if (state.zenMode) return;
         e.stopPropagation(); 
-        if (state.placingFrogId !== null) { confirmPlacement(padIdx); return; }
+
+        if (state.placingFrogId !== null) { 
+            const frogsOnThisPad = state.myFrogs.filter(f => f.padIndex === padIdx).length;
+            if (frogsOnThisPad < MAX_FROGS_PER_PAD) {
+                confirmPlacement(padIdx); 
+            } else {
+                const el = document.getElementById(`pad-${padIdx}`);
+                el.classList.add('shake');
+                setTimeout(() => el.classList.remove('shake'), 400);
+            }
+            return; 
+        }
+
         const power = 5 * Math.pow(1.5, state.clickLv - 1) * state.mult;
         gainRibbits(power);
         spawnText(e.clientX, e.clientY, `+${Math.floor(power)}`);
@@ -528,7 +576,8 @@
 
     function spawnWildFrog(padIdx) {
         const pad = document.getElementById(`pad-${padIdx}`);
-        if (!pad || pad.querySelectorAll('.frog-sprite').length > 0) {
+        const totalFrogs = pad ? pad.querySelectorAll('.frog-sprite').length : 0;
+        if (!pad || totalFrogs > 0) {
             if(pad) pad.dataset.spawning = 'false';
             return;
         }
@@ -564,15 +613,31 @@
         document.getElementById('catch-name').innerText = type.species;
         document.getElementById('catch-stats').innerText = `Bonus: ${type.bonusWeather.toUpperCase()} (+${((type.bonusMult - 1) * 100).toFixed(0)}%)`;
         document.getElementById('frog-name-input').value = "";
+        document.getElementById('frog-name-input').classList.remove('input-error');
+        document.getElementById('profanity-warning').classList.add('hidden');
         document.getElementById('catch-modal').style.display = 'flex';
     }
 
     function confirmCatch() {
-        const inputName = document.getElementById('frog-name-input').value.trim();
+        const input = document.getElementById('frog-name-input');
+        const inputName = input.value.trim();
+        const warning = document.getElementById('profanity-warning');
+
+        if (checkProfanity(inputName)) {
+            input.classList.add('input-error');
+            warning.classList.remove('hidden');
+            // Give them a spirit name instead of letting them keep a banned one
+            input.value = SPIRIT_NAMES[Math.floor(Math.random() * SPIRIT_NAMES.length)];
+            return;
+        }
+
         const finalName = inputName || state.currentCatch.type.species;
         state.myFrogs.push({ id: Date.now(), typeId: state.currentCatch.type.id, name: finalName, padIndex: -1 });
         const pad = document.getElementById(`pad-${state.currentCatch.padIdx}`);
-        if (pad) pad.innerHTML = '';
+        if (pad) {
+            const wild = pad.querySelector('.wild-frog');
+            if(wild) wild.remove();
+        }
         document.getElementById('catch-modal').style.display = 'none';
         state.currentCatch = null;
         updateUI();
@@ -582,29 +647,48 @@
         state.placingFrogId = frogId;
         closeFrogMenu();
         document.getElementById('placing-ui').style.display = 'block';
+        
         document.querySelectorAll('.lily-pad').forEach((pad, idx) => {
-            if (state.myFrogs.filter(f => f.padIndex === idx).length < MAX_FROGS_PER_PAD) {
+            const count = state.myFrogs.filter(f => f.padIndex === idx).length;
+            if (count < MAX_FROGS_PER_PAD) {
                 pad.classList.add('selectable');
+                pad.classList.remove('is-full');
+            } else {
+                pad.classList.add('is-full');
             }
         });
     }
 
     function confirmPlacement(padIdx) {
+        const currentPadCount = state.myFrogs.filter(f => f.padIndex === padIdx).length;
+        if (currentPadCount >= MAX_FROGS_PER_PAD) return;
+
         const frog = state.myFrogs.find(f => f.id === state.placingFrogId);
-        frog.padIndex = padIdx;
-        cancelPlacement();
-        refreshPondFrogs();
-        updateUI();
+        if(frog) {
+            frog.padIndex = padIdx;
+            cancelPlacement();
+            refreshPondFrogs();
+            updateUI();
+        }
     }
 
     function cancelPlacement() {
         state.placingFrogId = null;
         document.getElementById('placing-ui').style.display = 'none';
-        document.querySelectorAll('.lily-pad').forEach(p => p.classList.remove('selectable'));
+        document.querySelectorAll('.lily-pad').forEach(p => {
+            p.classList.remove('selectable');
+            p.classList.remove('is-full');
+            p.classList.remove('shake');
+        });
     }
 
     function refreshPondFrogs() {
-        document.querySelectorAll('.lily-pad').forEach(p => p.innerHTML = '');
+        document.querySelectorAll('.lily-pad').forEach(p => {
+            const wild = p.querySelector('.wild-frog');
+            p.innerHTML = '';
+            if(wild) p.appendChild(wild);
+        });
+
         state.myFrogs.forEach(f => {
             if (f.padIndex !== -1) {
                 const pad = document.getElementById(`pad-${f.padIndex}`);
@@ -751,7 +835,8 @@
         if (!state.zenMode) {
             for (let i = 0; i < state.pads; i++) {
                 const p = document.getElementById(`pad-${i}`);
-                if (p && p.querySelectorAll('.frog-sprite').length === 0 && p.dataset.spawning !== 'true') {
+                const frogCount = p ? p.querySelectorAll('.frog-sprite').length : 0;
+                if (p && frogCount === 0 && p.dataset.spawning !== 'true') {
                     p.dataset.spawning = 'true';
                     setTimeout(() => spawnWildFrog(i), 5000 + Math.random() * 8000);
                 }
