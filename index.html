@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zen Ghibli Pond - Infinite Ascension</title>
+    <title>Frogfriends</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap');
@@ -26,6 +26,71 @@
             color: white;
         }
 
+        /* Title Screen Styles */
+        #title-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: linear-gradient(to bottom, #a7f3d0, #4fac82);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1.5s ease-out, transform 1.5s ease-out;
+        }
+
+        .title-container {
+            text-align: center;
+            animation: float-title 4s ease-in-out infinite;
+        }
+
+        .main-title {
+            font-size: 6rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 0 8px 0px rgba(0,0,0,0.1);
+            line-height: 0.8;
+            margin-bottom: 10px;
+        }
+
+        /* Pulsing Yellow Subtitle */
+        .sub-title {
+            color: #fde047;
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 40px;
+            animation: pulse-text 3s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        @keyframes pulse-text {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+
+        @keyframes float-title {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .start-btn {
+            background: white;
+            color: #4fac82;
+            padding: 15px 50px;
+            border-radius: 100px;
+            font-size: 2rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 0px #3d8a68;
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .start-btn:hover { transform: translateY(-3px); box-shadow: 0 13px 0px #3d8a68; }
+        .start-btn:active { transform: translateY(5px); box-shadow: 0 0px 0px #3d8a68; }
+
+        /* Game Container Styles */
         #pond-container {
             position: relative;
             width: 100vw;
@@ -34,7 +99,10 @@
             overflow: hidden;
             transition: background 4s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            opacity: 0;
         }
+
+        #pond-container.visible { opacity: 1; }
 
         body.zen-active #pond-container {
             background: linear-gradient(to bottom, var(--celestial-top) 0%, var(--celestial-bottom) 100%) !important;
@@ -263,6 +331,16 @@
 </head>
 <body>
 
+<div id="title-screen">
+    <div class="title-container">
+        <h1 class="main-title">Frogfriends</h1>
+        <div id="random-subtitle" class="sub-title">Totoro-lly awesome!</div>
+        <br>
+        <button class="start-btn" onclick="startGame()">Start Journey</button>
+    </div>
+    <div class="absolute inset-0 pointer-events-none opacity-40 overflow-hidden" id="title-deco"></div>
+</div>
+
 <div id="zen-exit-detector"></div>
 
 <div id="pond-container" onclick="handlePondClick(event)">
@@ -371,39 +449,67 @@
 <script>
     const MAX_FROGS_PER_PAD = 4;
     
-    // Profanity Filter Configuration
-    const BANNED_TERMS = [
-        'fuck', 'shit', 'ass', 'bitch', 'cunt', 'dick', 'pussy', 'nigger', 'faggot', 'cock', 'bastard', 'slut', 'whore',
-        'fuk', 'shit', 'biatch', 'azz', 'f@g', 'fag', 'retard', 'cum', 'clit', 'dyke', 'tit', 'boob', 'porn', 'sex'
+    // Phrases List (200+)
+    const PHRASES = [
+        "Totoro-lly awesome!", "Peaceful hopping", "The water is fine", "Zen ripples", "Spirit of the pond",
+        "Leap of faith", "Don't worry, be hoppy", "Fly snacking", "Lily pad lounging", "Ribbiting adventure",
+        "Mossy stones", "Dewdrop dreams", "Morning mist", "Catbus is coming", "Soot sprite sightings",
+        "Bento box lunch", "Kodama echoes", "Floating on a leaf", "Tranquil tides", "Breathe in, ribbit out",
+        "Starlight reflections", "Hidden sanctuary", "Pond life is the best life", "Croak and roll", "Nature's melody",
+        "Ancient waters", "Golden hour", "Ghibli vibes only", "Soft rain falling", "Cherry blossom petals",
+        "A forest spirit's secret", "Magic in the reeds", "Waiting for the rain", "Bus stop umbrellas",
+        "Bathing in moonlight", "Green and serene", "Hoppy place", "Ribbit of the wild", "Whispering pines",
+        "Dancing dragonflies", "Summer cicadas", "Autumn leaves drifting", "Winter's quiet sleep", "Spring's awakening",
+        "Find your zen", "Just keep swimming... or hopping", "Little green friends", "Lily pad party",
+        "Mindful moments", "Serendipitous splashes", "Aquatic harmony", "Infinite ripples", "The Way of the Frog",
+        "Emerald explorers", "Crystal clear currents", "Nature's lullaby", "Ethereal ecosystems", "Pondside poetry",
+        "Glistening glades", "Verdant valleys", "Majestic marshes", "Sacred springs", "Purely peaceful",
+        "Tadpole tales", "Metamorphosis magic", "Webbed wonder", "Croaking choir", "Marshmallow clouds",
+        "Sunbeam soaks", "Dragonfly dreams", "Snail pace living", "Slug wisdom", "Bamboo forest whispers",
+        "Wind through the grass", "Spirit realm secrets", "Unseen guardians", "The Catbus stop", "Mei's discoveries",
+        "Satsuki's smile", "Calcifer's warmth", "Howl's moving pond", "Kiki's delivery service", "Ponyo's waves",
+        "Mononoke's woods", "Arrietty's small world", "Wind rises", "Whisper of the heart", "Porco's flight",
+        "Nausicaä's valley", "Laputa's sky", "Kaguya's moon", "Marnie's memories", "Tale of Princess Kaguya",
+        "When Marnie was there", "Only Yesterday", "Pom Poko play", "My Neighbors the Yamadas", "The Cat Returns",
+        "Tales from Earthsea", "Secret World of Arrietty", "From Up on Poppy Hill", "The Wind Rises", "The Red Turtle",
+        "Earwig and the Witch", "Boy and the Heron", "Eternal pond", "Infinite hopping", "Dreamy dewdrops",
+        "Silent stones", "Wandering water", "Gentle giants", "Tiny titans", "Mossy magic", "Lush landscapes",
+        "Quiet corners", "Hidden hollows", "Serene streams", "Placid pools", "Murmuring mud", "Slick salamanders",
+        "Newt notes", "Bird songs", "Crickets at night", "Firefly glow", "Lantern light", "Paper umbrellas",
+        "Silk robes", "Tea time", "Zen gardens", "Bonsai trees", "Koi fish friends", "Carp of luck",
+        "Crane's flight", "Turtle's wisdom", "Heron's patience", "Kingfisher's dive", "Otter play", "Beaver's build",
+        "Raccoon antics", "Fox's cunning", "Wolf's howl", "Deer's grace", "Boar's strength", "Ape's thought",
+        "Dragon's fire", "Phoenix's ash", "Unicorn's horn", "Griffin's wing", "Kappa's bowl", "Oni's mask",
+        "Tengu's fan", "Kitsune's tail", "Tanuki's leaf", "Yōkai adventures", "Bake-kujira's whale", "Gashadokuro's bone",
+        "Jorōgumo's web", "Kamaitachi's wind", "Nurarihyon's head", "Rokurokubi's neck", "Tsuchinoko's slide",
+        "Umibōzu's wave", "Yuki-onna's cold", "Zashiki-warashi's luck", "Amabie's health", "Azukiarai's beans",
+        "Chōchin-obake's eye", "Ittan-momen's cloth", "Karakasa-kozō's hop", "Mokumokuren's screen", "Nurikabe's wall",
+        "Tsukumogami's soul", "The spirit world", "Chihiro's journey", "Haku's river", "No-Face's gold",
+        "Kamaji's coal", "Lin's kindness", "Zeniba's tea", "Yubaba's bathhouse", "Stink spirit's cleaning",
+        "Radish spirit's elevator", "Duck spirits in a tub", "Ootori-sama's warmth", "Ushioni's bulk",
+        "River spirit's flight", "White dragon's鳞", "Swamp bottom", "Zeniba's house", "The train tracks",
+        "Sixth station", "Spirited away", "Lost in the forest", "Found in the pond", "Ghibli magic", "Miyazaki's mind",
+        "Studio Ghibli", "Joe Hisaishi's music", "Orchestral pond", "Violin of the valley", "Piano of the plains",
+        "Flute of the forest", "Ocarina of the wind", "Harp of the hills", "Cello of the caves", "Drum of the depths",
+        "Trumpet of the trees", "Oboe of the ocean", "Clarinet of the clouds", "Bassoon of the bayou", "Horn of the highlands",
+        "Tuba of the tundra", "Percussion of the pond", "Froggy symphony", "Nature's orchestra", "The final ribbit"
     ];
+
+    const BANNED_TERMS = ['fuck', 'shit', 'ass', 'bitch', 'cunt', 'dick', 'pussy', 'nigger', 'faggot', 'cock', 'bastard', 'slut', 'whore'];
     const SPIRIT_NAMES = ["Komorebi", "Susuwatari", "Kodama", "Teto", "Yubaba", "Calcifer", "Jiji", "Haku", "Boh", "Neko", "Zen", "Mochi", "Soot", "Moss", "Rain", "Dew", "Leaf", "Mist", "Spirit"];
 
-    // Procedural Evo Components
     const EVO_PREFIXES = ["Silent", "Dappled", "Golden", "Radiant", "Mist-Bound", "Eternal", "Hallowed", "Dancing", "Prismatic", "Abyssal", "Starlit", "Whispering", "Velvet", "Glimmering"];
-    const EVO_NOUNS = ["Marsh", "Reeds", "Valley", "Grotto", "Sanctuary", "Waters", "Spring", "Lagoon", "Hollow", "Glade", "Zenith", "Reflection", "Basin", "Meadow"];
-    const EVO_DESCS = [
-        "The spirits begin to acknowledge your presence.",
-        "A soft light dances across the surface of the water.",
-        "The air feels heavy with ancient magic.",
-        "Butterflies of light flutter in the distance.",
-        "Everything is perfectly still, and perfectly alive.",
-        "The ripples echo with the songs of a thousand frogs.",
-        "A place where time itself comes to rest.",
-        "The boundaries between worlds begin to blur."
-    ];
+    const EVO_NOUN = ["Marsh", "Reeds", "Valley", "Grotto", "Sanctuary", "Waters", "Spring", "Lagoon", "Hollow", "Glade", "Zenith", "Reflection", "Basin", "Meadow"];
+    const EVO_DESCS = ["The spirits begin to acknowledge your presence.", "A soft light dances across the surface of the water.", "The air feels heavy with ancient magic.", "Butterflies of light flutter in the distance.", "Everything is perfectly still, and perfectly alive."];
 
-    const FROG_TYPES = Array.from({ length: 50 }, (_, i) => {
-        const weathers = ['idle', 'rain', 'snow', 'lightning'];
-        const baseColors = ['#86efac', '#f87171', '#60a5fa', '#fbbf24', '#c084fc', '#f472b6', '#ffffff', '#4ade80'];
-        return {
-            id: i,
-            species: `Frog Spirit #${i + 1}`,
-            color: baseColors[i % baseColors.length],
-            bonusWeather: weathers[i % weathers.length],
-            bonusMult: 1.1 + (i * 0.05),
-            pattern: i % 3 === 0 ? 'dots' : i % 3 === 1 ? 'stripes' : 'none'
-        };
-    });
+    const FROG_TYPES = Array.from({ length: 50 }, (_, i) => ({
+        id: i,
+        species: `Frog Spirit #${i + 1}`,
+        color: ['#86efac', '#f87171', '#60a5fa', '#fbbf24', '#c084fc', '#f472b6', '#ffffff', '#4ade80'][i % 8],
+        bonusWeather: ['idle', 'rain', 'snow', 'lightning'][i % 4],
+        bonusMult: 1.1 + (i * 0.05),
+        pattern: i % 3 === 0 ? 'dots' : i % 3 === 1 ? 'stripes' : 'none'
+    }));
     
     let state = {
         ribbits: 0,
@@ -419,24 +525,35 @@
         weather: 'idle',
         myFrogs: [], 
         currentCatch: null,
-        placingFrogId: null
+        placingFrogId: null,
+        gameStarted: false
     };
+
+    function startGame() {
+        state.gameStarted = true;
+        const ts = document.getElementById('title-screen');
+        ts.style.opacity = '0';
+        ts.style.transform = 'scale(1.1)';
+        document.getElementById('pond-container').classList.add('visible');
+        setTimeout(() => { ts.style.display = 'none'; }, 1500);
+        updateUI();
+    }
+
+    function pickRandomSubtitle() {
+        const sub = document.getElementById('random-subtitle');
+        sub.innerText = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+    }
 
     function checkProfanity(text) {
         if (!text) return false;
         const clean = text.toLowerCase().replace(/[^a-z0-9]/g, '');
-        // Leetspeak normalization
-        const normalized = clean
-            .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e')
-            .replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
-            
-        return BANNED_TERMS.some(term => normalized.includes(term));
+        return BANNED_TERMS.some(term => clean.includes(term));
     }
 
     function generateEvoName(level) {
         if (level === 0) return "Morning Marsh";
         const p = EVO_PREFIXES[Math.floor((level * 7) % EVO_PREFIXES.length)];
-        const n = EVO_NOUNS[Math.floor((level * 13) % EVO_NOUNS.length)];
+        const n = EVO_NOUN[Math.floor((level * 13) % EVO_NOUN.length)];
         return `${p} ${n}`;
     }
 
@@ -455,16 +572,6 @@
             document.getElementById('fs-icon').innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>';
         }
     }
-
-    let lastTapTime = 0;
-    const detector = document.getElementById('zen-exit-detector');
-    detector.ondblclick = () => toggleZen(false);
-    detector.addEventListener('touchstart', (e) => {
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTapTime;
-        if (tapLength < 300 && tapLength > 0) { toggleZen(false); e.preventDefault(); }
-        lastTapTime = currentTime;
-    });
 
     function updateUI() {
         const frogBonusMult = state.myFrogs.reduce((acc, f) => {
@@ -507,45 +614,27 @@
         state.totalInEvo = 0;
         state.evoGoal = Math.floor(state.evoGoal * 2.8);
         state.mult += 0.5 + (state.evolution * 0.2);
-        
         const pair = generateEvoColor(state.evolution);
         document.getElementById('pond-container').style.setProperty('--bg-top', pair[0]);
         document.getElementById('pond-container').style.setProperty('--bg-bottom', pair[1]);
-        
         document.getElementById('evo-desc').innerText = EVO_DESCS[Math.floor(Math.random() * EVO_DESCS.length)];
-        
         spawnSpiritBurst();
         randomizeWeather();
     }
 
-    function spawnSpiritBurst() {
-        for(let i=0; i<15; i++) {
-            const orb = document.createElement('div');
-            orb.className = 'spirit-orb';
-            orb.style.left = (20 + Math.random() * 60) + 'vw';
-            orb.style.top = (20 + Math.random() * 60) + 'vh';
-            orb.style.animationDelay = (Math.random() * 2) + 's';
-            document.getElementById('spirit-layer').appendChild(orb);
-            setTimeout(() => orb.remove(), 10000);
-        }
-    }
-
     function handlePadInteraction(padIdx, e) {
-        if (state.zenMode) return;
+        if (state.zenMode || !state.gameStarted) return;
         e.stopPropagation(); 
-
         if (state.placingFrogId !== null) { 
             const frogsOnThisPad = state.myFrogs.filter(f => f.padIndex === padIdx).length;
-            if (frogsOnThisPad < MAX_FROGS_PER_PAD) {
-                confirmPlacement(padIdx); 
-            } else {
+            if (frogsOnThisPad < MAX_FROGS_PER_PAD) confirmPlacement(padIdx); 
+            else {
                 const el = document.getElementById(`pad-${padIdx}`);
                 el.classList.add('shake');
                 setTimeout(() => el.classList.remove('shake'), 400);
             }
             return; 
         }
-
         const power = 5 * Math.pow(1.5, state.clickLv - 1) * state.mult;
         gainRibbits(power);
         spawnText(e.clientX, e.clientY, `+${Math.floor(power)}`);
@@ -553,7 +642,7 @@
     }
 
     function handlePondClick(e) {
-        if (state.zenMode) return;
+        if (state.zenMode || !state.gameStarted) return;
         spawnRipple(e.clientX, e.clientY);
     }
 
@@ -575,6 +664,7 @@
     }
 
     function spawnWildFrog(padIdx) {
+        if (!state.gameStarted) return;
         const pad = document.getElementById(`pad-${padIdx}`);
         const totalFrogs = pad ? pad.querySelectorAll('.frog-sprite').length : 0;
         if (!pad || totalFrogs > 0) {
@@ -598,10 +688,8 @@
             <ellipse cx="50" cy="55" rx="35" ry="30" fill="${type.color}" stroke="rgba(0,0,0,0.1)" stroke-width="2"/>
             <circle cx="35" cy="35" r="10" fill="${type.color}"/>
             <circle cx="65" cy="35" r="10" fill="${type.color}"/>
-            <circle cx="35" cy="35" r="4" fill="white"/>
-            <circle cx="35" cy="35" r="1.5" fill="black"/>
-            <circle cx="65" cy="35" r="4" fill="white"/>
-            <circle cx="65" cy="35" r="1.5" fill="black"/>
+            <circle cx="35" cy="35" r="4" fill="white"/><circle cx="35" cy="35" r="1.5" fill="black"/>
+            <circle cx="65" cy="35" r="4" fill="white"/><circle cx="65" cy="35" r="1.5" fill="black"/>
             <path d="M35 70 Q50 80 65 70" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="3" stroke-linecap="round"/>
             ${pattern}
         </svg>`;
@@ -613,24 +701,17 @@
         document.getElementById('catch-name').innerText = type.species;
         document.getElementById('catch-stats').innerText = `Bonus: ${type.bonusWeather.toUpperCase()} (+${((type.bonusMult - 1) * 100).toFixed(0)}%)`;
         document.getElementById('frog-name-input').value = "";
-        document.getElementById('frog-name-input').classList.remove('input-error');
-        document.getElementById('profanity-warning').classList.add('hidden');
         document.getElementById('catch-modal').style.display = 'flex';
     }
 
     function confirmCatch() {
         const input = document.getElementById('frog-name-input');
         const inputName = input.value.trim();
-        const warning = document.getElementById('profanity-warning');
-
         if (checkProfanity(inputName)) {
             input.classList.add('input-error');
-            warning.classList.remove('hidden');
-            // Give them a spirit name instead of letting them keep a banned one
             input.value = SPIRIT_NAMES[Math.floor(Math.random() * SPIRIT_NAMES.length)];
             return;
         }
-
         const finalName = inputName || state.currentCatch.type.species;
         state.myFrogs.push({ id: Date.now(), typeId: state.currentCatch.type.id, name: finalName, padIndex: -1 });
         const pad = document.getElementById(`pad-${state.currentCatch.padIdx}`);
@@ -647,22 +728,14 @@
         state.placingFrogId = frogId;
         closeFrogMenu();
         document.getElementById('placing-ui').style.display = 'block';
-        
         document.querySelectorAll('.lily-pad').forEach((pad, idx) => {
             const count = state.myFrogs.filter(f => f.padIndex === idx).length;
-            if (count < MAX_FROGS_PER_PAD) {
-                pad.classList.add('selectable');
-                pad.classList.remove('is-full');
-            } else {
-                pad.classList.add('is-full');
-            }
+            if (count < MAX_FROGS_PER_PAD) pad.classList.add('selectable');
+            else pad.classList.add('is-full');
         });
     }
 
     function confirmPlacement(padIdx) {
-        const currentPadCount = state.myFrogs.filter(f => f.padIndex === padIdx).length;
-        if (currentPadCount >= MAX_FROGS_PER_PAD) return;
-
         const frog = state.myFrogs.find(f => f.id === state.placingFrogId);
         if(frog) {
             frog.padIndex = padIdx;
@@ -678,7 +751,6 @@
         document.querySelectorAll('.lily-pad').forEach(p => {
             p.classList.remove('selectable');
             p.classList.remove('is-full');
-            p.classList.remove('shake');
         });
     }
 
@@ -688,7 +760,6 @@
             p.innerHTML = '';
             if(wild) p.appendChild(wild);
         });
-
         state.myFrogs.forEach(f => {
             if (f.padIndex !== -1) {
                 const pad = document.getElementById(`pad-${f.padIndex}`);
@@ -706,34 +777,20 @@
     function toggleZen(active) {
         state.zenMode = active;
         document.body.classList.toggle('zen-active', active);
-        const toast = document.getElementById('zen-toast');
         if (active) {
-            toast.style.opacity = '1';
-            setTimeout(() => toast.style.opacity = '0', 3000);
+            document.getElementById('zen-toast').style.opacity = '1';
+            setTimeout(() => document.getElementById('zen-toast').style.opacity = '0', 3000);
             startZenEcosystem();
-        } else {
-            stopZenEcosystem();
-            refreshPondFrogs();
-        }
+        } else { stopZenEcosystem(); refreshPondFrogs(); }
         updateUI();
     }
 
-    let zenIntervals = [];
     function startZenEcosystem() {
-        stopZenEcosystem();
-        zenIntervals.push(setInterval(() => spawnFish(), 3000));
-        zenIntervals.push(setInterval(() => randomizeWeather(), 10000));
-        zenIntervals.push(setInterval(() => spawnSpiritOrb(), 2000));
         state.zenMult = 2.0;
+        randomizeWeather();
     }
     function stopZenEcosystem() { 
-        zenIntervals.forEach(clearInterval); 
-        zenIntervals = []; 
-        document.getElementById('fish-layer').innerHTML = ''; 
-        document.getElementById('fx-layer').innerHTML = ''; 
-        document.getElementById('spirit-layer').innerHTML = '';
-        state.zenMult = 1.0;
-        state.weather = 'idle';
+        state.zenMult = 1.0; state.weather = 'idle';
         document.getElementById('weather-icon').innerText = '☀️'; 
     }
 
@@ -758,28 +815,17 @@
                 fx.appendChild(f);
             }
         } else { icon.innerText = '☀️'; }
-        updateUI();
     }
 
-    function spawnFish() {
-        if (!state.zenMode) return;
-        const fish = document.createElement('div'); fish.className = 'absolute';
-        const color = ['#ff8c00', '#ffffff', '#ffd700'][Math.floor(Math.random()*3)];
-        fish.innerHTML = `<svg width="50" height="25"><ellipse cx="25" cy="12" rx="20" ry="8" fill="${color}" opacity="0.3"/></svg>`;
-        const side = Math.random() > 0.5; let x = side ? -60 : window.innerWidth + 60;
-        fish.style.left = x + 'px'; fish.style.top = Math.random() * window.innerHeight + 'px';
-        document.getElementById('fish-layer').appendChild(fish);
-        fish.animate([{ left: x + 'px' }, { left: (side ? window.innerWidth + 60 : -60) + 'px' }], { duration: 10000 });
-        setTimeout(() => fish.remove(), 10000);
-    }
-
-    function spawnSpiritOrb() {
-        const orb = document.createElement('div');
-        orb.className = 'spirit-orb';
-        orb.style.left = Math.random() * 100 + 'vw';
-        orb.style.top = '110vh';
-        document.getElementById('spirit-layer').appendChild(orb);
-        setTimeout(() => orb.remove(), 10000);
+    function spawnSpiritBurst() {
+        for(let i=0; i<15; i++) {
+            const orb = document.createElement('div');
+            orb.className = 'spirit-orb';
+            orb.style.left = (20 + Math.random() * 60) + 'vw';
+            orb.style.top = (20 + Math.random() * 60) + 'vh';
+            document.getElementById('spirit-layer').appendChild(orb);
+            setTimeout(() => orb.remove(), 10000);
+        }
     }
 
     function spawnRipple(x, y) {
@@ -798,7 +844,6 @@
             const type = FROG_TYPES[frog.typeId];
             const div = document.createElement('div');
             div.className = 'bg-white/10 rounded-2xl p-4 mb-2 flex items-center gap-4';
-            const isOnPad = frog.padIndex !== -1;
             div.innerHTML = `
                 <div class="w-16 h-16">${getFrogSVG(type)}</div>
                 <div class="flex-1">
@@ -806,7 +851,7 @@
                     <div class="text-xs text-yellow-200 uppercase">${type.species} • Bonus: ${type.bonusWeather}</div>
                 </div>
                 <div>
-                    ${isOnPad ? `<button onclick="removeFromPond(${frog.id})" class="bg-red-500 px-4 py-2 rounded-xl font-bold">Recall</button>` : `<button onclick="startPlacement(${frog.id})" class="bg-yellow-500 text-green-900 px-4 py-2 rounded-xl font-bold">Place</button>`}
+                    ${frog.padIndex !== -1 ? `<button onclick="removeFromPond(${frog.id})" class="bg-red-500 px-4 py-2 rounded-xl font-bold">Recall</button>` : `<button onclick="startPlacement(${frog.id})" class="bg-yellow-500 text-green-900 px-4 py-2 rounded-xl font-bold">Place</button>`}
                 </div>`;
             list.appendChild(div);
         });
@@ -818,33 +863,33 @@
     function buyClick() { const c = Math.floor(250 * Math.pow(1.7, state.clickLv - 1)); if(state.ribbits >= c){ state.ribbits -= c; state.clickLv++; updateUI(); }}
     function buyTotem() { const c = Math.floor(5000 * Math.pow(3, state.totems)); if(state.ribbits >= c){ state.ribbits -= c; state.totems++; updateUI(); }}
 
-    setInterval(() => {
-        if (state.placingFrogId !== null) return;
-        
-        let passive = state.totems * 50;
-        state.myFrogs.forEach(f => {
-            if (f.padIndex !== -1) {
-                const t = FROG_TYPES[f.typeId];
-                let p = 5;
-                if (t.bonusWeather === state.weather || t.bonusWeather === 'idle') p *= t.bonusMult;
-                passive += p;
-            }
-        });
-        if (passive > 0) gainRibbits((passive * state.mult * state.zenMult) / 10);
+    function initTitleDeco() {
+        const deco = document.getElementById('title-deco');
+        for(let i=0; i<15; i++) {
+            const leaf = document.createElement('div');
+            leaf.style.cssText = `position:absolute; width:40px; height:40px; background:#62b88e; border-radius:50% 0 50% 50%; left:${Math.random()*100}%; top:${Math.random()*100}%; opacity:${0.2 + Math.random()*0.3}; transform: rotate(${Math.random()*360}deg);`;
+            deco.appendChild(leaf);
+        }
+    }
 
-        if (!state.zenMode) {
-            for (let i = 0; i < state.pads; i++) {
-                const p = document.getElementById(`pad-${i}`);
-                const frogCount = p ? p.querySelectorAll('.frog-sprite').length : 0;
-                if (p && frogCount === 0 && p.dataset.spawning !== 'true') {
-                    p.dataset.spawning = 'true';
-                    setTimeout(() => spawnWildFrog(i), 5000 + Math.random() * 8000);
-                }
+    setInterval(() => {
+        if (!state.gameStarted) return;
+        let passive = state.totems * 50;
+        state.myFrogs.forEach(f => { if (f.padIndex !== -1) passive += 5; });
+        if (passive > 0) gainRibbits((passive * state.mult * state.zenMult) / 10);
+        for (let i = 0; i < state.pads; i++) {
+            const p = document.getElementById(`pad-${i}`);
+            if (p && p.querySelectorAll('.frog-sprite').length === 0 && p.dataset.spawning !== 'true') {
+                p.dataset.spawning = 'true'; setTimeout(() => spawnWildFrog(i), 5000 + Math.random() * 8000);
             }
         }
     }, 100);
 
-    updateUI();
+    window.onload = () => {
+        pickRandomSubtitle();
+        initTitleDeco();
+        updateUI();
+    };
 </script>
 </body>
 </html>
