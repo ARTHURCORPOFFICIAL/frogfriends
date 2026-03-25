@@ -274,12 +274,10 @@
                         <span class="text-xs mt-1" id="cost-totem">5,000</span>
                     </button>
                     <button onclick="saveGame()" class="pill-btn save-btn">
-                        <span>💾 Save</span>
-                        <span class="text-xs mt-1">Game</span>
+                        <span>Save Game</span>
                     </button>
                     <button onclick="showLoadModal()" class="pill-btn save-btn">
-                        <span>📂 Load</span>
-                        <span class="text-xs mt-1">Game</span>
+                        <span>Load Game</span>
                     </button>
                 </div>
             </div>
@@ -292,7 +290,7 @@
     <div class="modal-content">
         <h2 class="text-3xl font-bold mb-4">Load Game</h2>
         <p class="text-yellow-200 mb-4 text-sm">This will completely wipe your current progress and replace it with the loaded save.</p>
-        <textarea id="load-data" rows="6" class="w-full bg-black/30 border border-white/30 rounded-2xl p-4 text-white text-sm font-mono resize-none" placeholder="Paste your saved game data here..."></textarea>
+        <textarea id="load-data" rows="8" class="w-full bg-black/30 border border-white/30 rounded-2xl p-4 text-white text-sm font-mono resize-none" placeholder="Paste your saved game data here..."></textarea>
         <div class="flex gap-3 mt-6">
             <button onclick="closeLoadModal()" class="flex-1 py-4 bg-gray-600 rounded-2xl font-bold">Cancel</button>
             <button onclick="loadGame()" class="flex-1 py-4 bg-yellow-400 text-green-900 font-bold rounded-2xl">Load & Wipe Current Progress</button>
@@ -364,7 +362,6 @@
     };
 
     function resetGameState() {
-        // Completely wipe everything before loading new save
         state.ribbits = 0;
         state.totalInEvo = 0;
         state.evolution = 0;
@@ -381,15 +378,12 @@
         state.placingFrogId = null;
         state.lastTapTime = 0;
 
-        // Remove all extra lily pads
         document.querySelectorAll('.lily-pad').forEach((pad, index) => {
             if (index > 0) pad.remove();
         });
 
-        // Reset background
         document.getElementById('pond-container').style.setProperty('--bg-top', '#a7f3d0');
         document.getElementById('pond-container').style.setProperty('--bg-bottom', '#4fac82');
-
         document.getElementById('fx-layer').innerHTML = '';
         document.getElementById('spirit-layer').innerHTML = '';
     }
@@ -487,30 +481,33 @@
         randomizeWeather();
     }
 
-    // ==================== SAVE & LOAD (with full wipe on load) ====================
+    // ==================== SAVE & LOAD (Anti-tampering) ====================
     function saveGame() {
         const saveData = {
-            version: 1,
-            ribbits: state.ribbits,
-            totalInEvo: state.totalInEvo,
-            evolution: state.evolution,
-            pads: state.pads,
-            clickLv: state.clickLv,
-            totems: state.totems,
-            mult: state.mult,
-            evoGoal: state.evoGoal,
-            myFrogs: state.myFrogs
+            v: 1,
+            r: Math.floor(state.ribbits),
+            t: state.totalInEvo,
+            e: state.evolution,
+            p: state.pads,
+            c: state.clickLv,
+            o: state.totems,
+            m: state.mult,
+            g: state.evoGoal,
+            f: state.myFrogs
         };
 
-        const saveString = btoa(JSON.stringify(saveData));
-        navigator.clipboard.writeText(saveString).then(() => {
+        const jsonStr = JSON.stringify(saveData);
+        const checksum = jsonStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 999999;
+        const finalSave = jsonStr + "|" + checksum;
+
+        navigator.clipboard.writeText(finalSave).then(() => {
             const toast = document.getElementById('zen-toast');
-            toast.textContent = "✅ Save copied to clipboard! Paste it somewhere safe.";
+            toast.textContent = "✅ Save copied to clipboard!";
             toast.style.opacity = '1';
             setTimeout(() => { 
                 toast.style.opacity = '0'; 
                 toast.textContent = "Double click / double tap anywhere to return home"; 
-            }, 4000);
+            }, 3000);
         });
     }
 
@@ -531,22 +528,34 @@
         }
 
         try {
-            const decoded = JSON.parse(atob(input));
-            if (decoded.version !== 1) throw new Error("Invalid save version");
+            const parts = input.split("|");
+            if (parts.length !== 2) throw new Error("Invalid format");
+
+            const jsonStr = parts[0];
+            const providedChecksum = parseInt(parts[1]);
+            const calculatedChecksum = jsonStr.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 999999;
+
+            if (providedChecksum !== calculatedChecksum) {
+                alert("Save data has been modified or is corrupted!");
+                return;
+            }
+
+            const decoded = JSON.parse(jsonStr);
+            if (decoded.v !== 1) throw new Error("Invalid version");
 
             // FULL WIPE FIRST
             resetGameState();
 
-            // Then load new data
-            state.ribbits = decoded.ribbits || 0;
-            state.totalInEvo = decoded.totalInEvo || 0;
-            state.evolution = decoded.evolution || 0;
-            state.pads = Math.max(1, decoded.pads || 1);
-            state.clickLv = decoded.clickLv || 1;
-            state.totems = decoded.totems || 0;
-            state.mult = decoded.mult || 1.0;
-            state.evoGoal = decoded.evoGoal || 100;
-            state.myFrogs = decoded.myFrogs || [];
+            // Load new data
+            state.ribbits = decoded.r || 0;
+            state.totalInEvo = decoded.t || 0;
+            state.evolution = decoded.e || 0;
+            state.pads = Math.max(1, decoded.p || 1);
+            state.clickLv = decoded.c || 1;
+            state.totems = decoded.o || 0;
+            state.mult = decoded.m || 1.0;
+            state.evoGoal = decoded.g || 100;
+            state.myFrogs = decoded.f || [];
 
             // Re-create lily pads
             const mainCluster = document.getElementById('main-cluster');
@@ -567,7 +576,7 @@
             updateUI();
 
             const toast = document.getElementById('zen-toast');
-            toast.textContent = "✅ Progress loaded successfully! (Old data wiped)";
+            toast.textContent = "✅ Progress loaded successfully!";
             toast.style.opacity = '1';
             setTimeout(() => { 
                 toast.style.opacity = '0'; 
@@ -575,10 +584,11 @@
             }, 3000);
 
         } catch (e) {
-            alert("Invalid save data! Please copy the full save string again.");
+            alert("Invalid save data! Please make sure you copied the entire text.");
         }
     }
 
+    // ==================== Rest of game functions (unchanged) ====================
     function handlePadInteraction(padIdx, e) {
         if (state.zenMode || !state.gameStarted) return;
         e.stopPropagation();
